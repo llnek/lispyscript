@@ -3,7 +3,30 @@ var xx = function() {
     (1 + 3);
     return (4 / 5);
 };
+var ggg = 77;
 var pp = function() {
     (3 / 4);
     return (4 * 5);
 };
+((Object.prototype.toString.call(-33) === "[object Number]") && (-33 < 0));
+((Object.prototype.toString.call(34) === "[object Number]") && (34 > 0));
+(function() {
+try {
+    poo(11);
+    return xxx(0);
+
+} catch (e) {
+return (function(e) {
+    return 4;
+})(e);
+}
+})();
+(function(rc) {
+    (5 / 6);
+    (8 * 9);
+    return rc;
+})(new Poo(4,5));
+(function(a,b,c) {
+    poo(a,b);
+    return fass(c,"fff asd");
+})((1 + 2),(3 / 4),(7 * 8));

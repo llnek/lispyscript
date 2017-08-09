@@ -66,7 +66,7 @@
 
 ;; method chaining macro
 (macro -> (func form rest...)
-  (#args-if rest... 
+  (#args-if rest...
     (-> (((#args-shift form) ~func) ~@form) ~rest...)
     (((#args-shift form) ~func) ~@form)))
 
@@ -77,7 +77,7 @@
 
 (macro reduce (arr rest...)
   ((.reduce ~arr) ~rest...))
- 
+
 (macro eachKey (obj fn rest...)
   ((function (o f s)
     (var _k (Object.keys o))
@@ -173,7 +173,7 @@
     (+ "Failed - " ~message)))
 
 (macro testGroup (name rest...)
-  (var ~name 
+  (var ~name
     (function ()
       (array ~rest...))))
 
@@ -188,12 +188,12 @@
         (if (elem.match /^Passed/)
           ++passed
           ++failed)))
-    (str 
+    (str
       (str "\n" desc "\n" start "\n\n")
       (template-repeat tests elem "\n")
-      "\nTotal tests " tests.length 
-      "\nPassed " passed 
-      "\nFailed " failed 
+      "\nTotal tests " tests.length
+      "\nPassed " passed
+      "\nFailed " failed
       "\nDuration " (- (new Date) start) "ms\n")) ~groupname ~desc))
 
 
@@ -275,12 +275,48 @@
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;clojure-like
-(macro defn (name args rest...)
-       (var ~name 
-            (function ~args ~rest...)))
 
-(macro fn (args rest...)
-       (function ~args ~rest...))
+;;(defmacro def (rest...) (var ~rest...))
+
+(defmacro defn
+  (name args rest...)
+  (var ~name
+       (function ~args ~rest...)))
+
+(defmacro fn
+  (args rest...)
+  (function ~args ~rest...))
+
+(defmacro #
+  (rest...)
+  (function () ~rest...))
+
+(defmacro pos?
+  (arg)
+  (&& (number? ~arg) (> ~arg 0)))
+
+(defmacro neg?
+  (arg)
+  (&& (number? ~arg) (< ~arg 0)))
+
+(defmacro when-not
+  (cond rest...)
+  (if (! ~cond) (do ~rest...)))
+
+(defmacro if-not
+  (cond rest...)
+  (if (! ~cond) ~rest...))
+
+(defmacro try! (rest...)
+  (try ~rest... (fn () )))
+
+(defmacro let* (names vals rest...)
+  ((function ~names ~rest...) ~@vals))
+
+(defmacro do-with
+  (obj expr rest...)
+  (let* (~obj) (~expr) ~rest... ~obj))
+
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;EOF
