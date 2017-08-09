@@ -273,5 +273,15 @@
     (function ()
       ~obj)))
 
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;clojure-like
+(macro defn (name args rest...)
+       (var ~name 
+            (function ~args ~rest...)))
 
+(macro fn (args rest...)
+       (function ~args ~rest...))
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;EOF
 
