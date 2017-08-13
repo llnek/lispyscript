@@ -278,6 +278,13 @@
 
 ;;(defmacro def (rest...) (var ~rest...))
 
+(defmacro def (rest...) (var ~rest...))
+(defmacro and (rest...) (&& ~rest...))
+(defmacro or (rest...) (|| ~rest...))
+(defmacro not (rest...) (! ~rest...))
+(defmacro not= (rest...) (!= ~rest...))
+(defmacro nil? (rest...) (null? ~rest...))
+
 (defmacro defn
   (name args rest...)
   (var ~name
@@ -293,11 +300,11 @@
 
 (defmacro pos?
   (arg)
-  (&& (number? ~arg) (> ~arg 0)))
+  (and (number? ~arg) (> ~arg 0)))
 
 (defmacro neg?
   (arg)
-  (&& (number? ~arg) (< ~arg 0)))
+  (and (number? ~arg) (< ~arg 0)))
 
 (defmacro when-not
   (cond rest...)
@@ -313,10 +320,15 @@
 (defmacro let* (names vals rest...)
   ((function ~names ~rest...) ~@vals))
 
+(defmacro set! (rest...) (set ~rest...))
+
 (defmacro do-with
   (obj expr rest...)
   (let* (~obj) (~expr) ~rest... ~obj))
 
+(defmacro do->false (rest...) (do ~rest... false))
+(defmacro do->true (rest...) (do ~rest... true))
+(defmacro do->nil (rest...) (do ~rest... nil))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;EOF

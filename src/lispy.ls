@@ -38,99 +38,95 @@
   ;; when no args do stdin -> stdout compile or run repl and return null to
   ;; halt operations.
   (noargs
-    (when (&&
-              (= opt.argv.length 0)
-              (= (.length (Object.keys opt.options)) 0))
-      (var input process.stdin)
+    (when (and
+              (zero? opt.argv.length)
+              (zero? (.length (Object.keys opt.options))))
       (var output process.stdout)
+      (var input process.stdin)
       (input.resume)
       (input.setEncoding "utf8")
       (var source "")
       ;; Accumulate text form input until it ends.
       (input.on "data"
-        (function (chunck)
-          (set source (+ source (chunck.toString)))))
+        (fn (chunck)
+          (set! source (+ source (chunck.toString)))))
       ;; Once input ends try to compile & write to output.
       (input.on "end"
-        (function ()
+        (#
           (try
             (output.write (ls._compile source process.cwd))
             error)))
       (input.on "error" error)
       (output.on "error" error)
       (setTimeout
-        (function ()
-          (if (= input.bytesRead 0)
+        (#
+          (if (zero? input.bytesRead)
             (do
               (input.removeAllListeners "data")
               (repl.runrepl)))) 20)
-      null)
+      nil)
 
   compile
-    (cond 
-      (true? opt.options['version']) (do (console.log (+ "Version " ls.version)) null)
+    (cond
+      (true? opt.options['version']) (do->nil (console.log (+ "Version " ls.version)))
       (true? opt.options['browser-bundle'])
-          (do
+          (do->nil
             (var bundle
               (require.resolve "lispyscript/lib/browser-bundle.js"))
               ((.pipe (fs.createReadStream bundle))
-              (fs.createWriteStream "browser-bundle.js"))
-                      null)
-      (true? opt.options['run']) 
+              (fs.createWriteStream "browser-bundle.js")))
+      (true? opt.options['run'])
           ;; run specified .ls file (directly with no explicit .js file)
-          (do
+          (do->nil
             (var infile
               (if opt.argv[0]
                 ;; we require .ls extension (our require extension depends on it!)
-                (if (&& (= (opt.argv[0].indexOf '.ls') -1) (= (opt.argv[0].indexOf '.js') -1))
+                (if (and (= (opt.argv[0].indexOf '.ls') -1)
+                         (= (opt.argv[0].indexOf '.js') -1))
                   (error (new Error "Error: Input file must have extension '.ls' or '.js'"))
                   opt.argv[0])
                 (error (new Error "Error: No Input file given"))))
             ;; by running the file via require we ensure that any other
             ;; requires within infile work (and process paths correctly)
-            (require infile)
-            null)
+            (require infile))
       (true? opt.options['watch'])
-          (do
+          (do->nil
             (var cwd (process.cwd))
             (console.log 'Watching' cwd 'for .ls file changes...')
-            (watch.watchTree cwd 
-              (object 
-                filter (function (f stat) (|| (stat.isDirectory) (!= (f.indexOf '.ls') -1)))
+            (watch.watchTree cwd
+              (object
+                filter (fn (f stat) (or (stat.isDirectory) (not= (f.indexOf '.ls') -1)))
                 ignoreDotFiles true
-                ignoreDirectoryPattern /node_modules/ ) 
-              (function (f curr prev) 
+                ignoreDirectoryPattern /node_modules/ )
+              (fn (f curr prev)
                 (cond
-                  (&& curr (!= curr.nlink 0))
+                  (and curr (not= curr.nlink 0))
                     (->
                       (require "child_process")
                       (.spawn "lispy" [f.substring(cwd.length+1)] {stdio: "inherit"}))
-                  (&& (object? f) (null? prev) (null? curr))
-                    (eachKey f 
-                      (function (stat initialf) 
+                  (and (object? f) (nil? prev) (nil? curr))
+                    (eachKey f
+                      (fn (stat initialf)
                         (unless (= initialf cwd)
                           (->
                             (require "child_process")
-                            (.spawn "lispy" [initialf.substring(cwd.length+1)] {stdio: "inherit"}))))))))
-                          
-              null)
-      true true) ;; no other options - go ahead and compile
-  
+                            (.spawn "lispy" [initialf.substring(cwd.length+1)] {stdio: "inherit"})))))))))
+      :else true) ;; no other options - go ahead and compile
+
   ;; if infile undefined
   infile
     (if opt.argv[0]
       opt.argv[0]
       (error (new Error "Error: No Input file given")))
 
-  ;; set outfile args.shift. ! outfile set outfile to infile(.js) 
-  outfile 
-    (do
-      (var outfile opt.argv[1])
+  ;; set outfile args.shift. ! outfile set outfile to infile(.js)
+  outfile
+    (do-with outfile
+             opt.argv[1]
       (unless outfile
-        (set outfile (infile.replace /\.ls$/ ".js"))
+        (set! outfile (infile.replace /\.ls$/ ".js"))
         (if (= outfile infile)
-          (error (new Error "Error: Input file must have extension '.ls'"))))
-      outfile))
+          (error (new Error "Error: Input file must have extension '.ls'"))))))
 
   ;; compile infile to outfile.
   (try
@@ -139,6 +135,7 @@
       (ls._compile (fs.readFileSync infile "utf8")
         infile (true? opt.options['map']) opt.options['include-dir'])
     "utf8")
-    (function (err)
-      (error err)
-      null)))                     ;; end of maybe Monad bindings
+    (fn (err) (error err) nil)))
+;; end of maybe Monad bindings
+
+

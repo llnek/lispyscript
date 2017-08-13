@@ -9,6 +9,9 @@
 
 (macro $listener (domObj eventName rest...)
   ((.addEventListener ~domObj) ~eventName
-    (function (event)
-    ~rest...)))
+    (fn (event) ~rest...)))
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;EOF
+
 

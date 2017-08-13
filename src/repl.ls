@@ -5,20 +5,20 @@
      ls (require "../lib/ls")
      prefix "lispy> ")
 
-(set exports.runrepl
-  (function ()
+(set! exports.runrepl
+  (#
     (var rl (readline.createInterface process.stdin process.stdout))
     (rl.on 'line'
-      (function (line)
+      (fn (line)
         (try
           (var l (ls._compile line))
           (console.log (this.eval l))
-          (function (err)
+          (fn (err)
             (console.log err)))
         (rl.setPrompt prefix prefix.length)
         (rl.prompt)))
     (rl.on 'close'
-      (function ()
+      (#
         (console.log "Bye!")
         (process.exit 0)))
     (console.log (str prefix 'LispyScript REPL v' ls.version))

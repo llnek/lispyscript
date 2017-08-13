@@ -1,4 +1,4 @@
-      
+
 (macro !-- (rest...)
   (str "<!-- " ~rest... " -->"))
 
@@ -148,7 +148,7 @@
 
 (macro hr (rest...)
   (_LS.expandTag "hr" ~rest...))
-  
+
 (macro html (rest...)
   (+ "<!DOCTYPE html>\n" (_LS.expandTag "html" ~rest...)))
 
@@ -334,22 +334,27 @@
 (macro wbr (rest...)
   (_LS.expandTag "wbr" ~rest...))
 
-(var _LS (|| _LS {}))
+(var _LS (or _LS {}))
 
-(set _LS.expandTag 
-  (function (name attr)
+(set! _LS.expandTag
+  (fn (name attr)
     (var args (Array.prototype.slice.call arguments))
     (var ret "")
     (if (string? name)
       (do
-        (set ret (+ "<" name))
+        (set! ret (+ "<" name))
         (args.shift)
         (if (object? attr)
           (do
-            (set ret (+ ret (template-repeat-key attr " " key "=" "\"" value "\"")))
+            (set! ret (+ ret (template-repeat-key attr " " key "=" "\"" value "\"")))
             (args.shift)))
-        (if (|| (> args.length 0) (= name "script"))
-          (set ret (str ret ">" (args.join "") "</" name ">"))
-          (set ret (+ ret "/>")))
+        (if (or (pos? args.length) (= name "script"))
+          (set! ret (str ret ">" (args.join "") "</" name ">"))
+          (set! ret (+ ret "/>")))
         ret)
       "")))
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;EOF
+
+

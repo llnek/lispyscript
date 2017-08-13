@@ -17,4 +17,6 @@
   (poo a b)
   (fass c "fff asd"))
 
+(do->nil (+ 2 3) 4 nil (+ 4 5))
+
 

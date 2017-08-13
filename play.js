@@ -30,3 +30,10 @@ return (function(e) {
     poo(a,b);
     return fass(c,"fff asd");
 })((1 + 2),(3 / 4),(7 * 8));
+(function() {
+    (2 + 3);
+    4;
+    null;
+    (4 + 5);
+    return null;
+})();

@@ -33,9 +33,9 @@
     "url": "git://github.com/santoshrajan/lispyscript.git"
   },
   "devDependencies": {
-    "browserify": ">2.14.1",
-    "tinix": "<=0.0.15",
-    "brfs": ">=0.0.6",
+    "brfs": "^1.4.3",
+    "browserify": "^14.4.0",
+    "tinix": "0.0.15",
     "underscore": "^1.8.2"
   },
   "scripts": {
