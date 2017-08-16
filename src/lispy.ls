@@ -131,7 +131,7 @@
   ;; compile infile to outfile.
   (try
     (console.log
-      (str "lispy v" ls.version ":  compiling" infile "to" outfile))
+      (str "lispy v" ls.version ":  compiling: " infile " -> " outfile))
     (fs.writeFileSync outfile
       (ls._compile (fs.readFileSync infile "utf8")
         infile (true? opt.options['map']) opt.options['include-dir'])
