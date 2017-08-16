@@ -4,7 +4,7 @@
      ls (require "./ls")
      repl (require "./repl")
      watch (require "watch")
-     isValidFlag /-h\b|-r\b|-v\b|-b\b|-s\b/
+     isValidFlag /-h\b|-r\b|-v\b|-b\b|-s\b|-t\b/
      error
        (function (err)
          (console.error err.message)
@@ -18,6 +18,7 @@
     ['w', 'watch', 'watch and compile changed files beneath current directory'],
     ['b', 'browser-bundle', 'create browser-bundle.js in the same directory'],
     ['m', 'map', 'generate source map files'],
+    ['t', 'tree', 'show AST tree'],
     ['i', 'include-dir=ARG+', 'add directory to include search path']])
   (.setHelp (+ "lispy [OPTION] [<infile>] [<outfile>]\n\n"
                "<outfile> will default to <infile> with '.js' extension\n\n"
@@ -54,7 +55,7 @@
       (input.on "end"
         (#
           (try
-            (output.write (ls._compile source process.cwd))
+            (output.write (ls.transpile source process.cwd))
             error)))
       (input.on "error" error)
       (output.on "error" error)
@@ -132,10 +133,18 @@
   (try
     (console.log
       (str "lispy v" ls.version ":  compiling: " infile " -> " outfile))
-    (fs.writeFileSync outfile
-      (ls._compile (fs.readFileSync infile "utf8")
-        infile (true? opt.options['map']) opt.options['include-dir'])
-    "utf8")
+    (var content (fs.readFileSync infile "utf8"))
+    (var wantMap (true? opt.options["map"]))
+    (var dbgAST (true? opt.options["tree"]))
+    (var dirs opt.options["include-dir"])
+    (if dbgAST
+      (ls.dbgAST content infile dirs)
+      (fs.writeFileSync
+        outfile
+        (if wantMap
+          (ls.transpileWithSrcMap content infile dirs)
+          (ls.transpile content infile dirs))
+        "utf8"))
     (fn (err) (error err) nil)))
 ;; end of maybe Monad bindings
 

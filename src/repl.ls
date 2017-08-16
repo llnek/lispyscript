@@ -11,7 +11,7 @@
     (rl.on 'line'
       (fn (line)
         (try
-          (var l (ls._compile line))
+          (var l (ls.transpile line))
           (console.log (this.eval l))
           (fn (err)
             (console.log err)))

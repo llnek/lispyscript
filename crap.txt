@@ -1,0 +1,35 @@
+
+[array]+
+  [array]+
+    source-node+ SourceNode { children: [ 'defn' ], name: 'defn', }
+      [array]+ defn [array]-
+    source-node-
+    source-node+ SourceNode { children: [ 'pp' ], name: 'pp', }
+      [array]+ pp [array]-
+    source-node-
+    [array]+ [array]-
+    [array]+
+      source-node+ SourceNode { children: [ '/' ], name: '/', }
+        [array]+ / [array]-
+      source-node-
+      source-node+ SourceNode { children: [ '3' ], name: '3',}
+        [array]+ 3 [array]-
+      source-node-
+      source-node+ SourceNode { children: [ '4' ], name: '4',}
+        [array]+ 4 [array]-
+      source-node-
+    [array]-
+    [array]+
+      source-node+ SourceNode { children: [ '*' ], name: '*',}
+        [array]+ * [array]-
+      source-node-
+      source-node+ SourceNode { children: [ '4' ], name: '4',}
+        [array]+ 4 [array]-
+      source-node-
+      source-node+ SourceNode { children: [ '5' ], name: '5',}
+        [array]+ 5 [array]-
+      source-node-
+    [array]-
+  [array]-
+[array]-
+
