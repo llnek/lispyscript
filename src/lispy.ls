@@ -131,12 +131,13 @@
 
   ;; compile infile to outfile.
   (try
-    (console.log
-      (str "lispy v" ls.version ":  compiling: " infile " -> " outfile))
-    (var content (fs.readFileSync infile "utf8"))
     (var wantMap (true? opt.options["map"]))
     (var dbgAST (true? opt.options["tree"]))
     (var dirs opt.options["include-dir"])
+    (if-not dbgAST
+      (console.log
+        (str "lispy v" ls.version ":  compiling: " infile " -> " outfile)))
+    (var content (fs.readFileSync infile "utf8"))
     (if dbgAST
       (ls.dbgAST content infile dirs)
       (fs.writeFileSync
