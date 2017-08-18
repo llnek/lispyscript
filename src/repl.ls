@@ -1,7 +1,7 @@
 ;; A very simple REPL written in LispyScript
 
 (require "./require")
-(var readline (require "readline")
+(def readline (require "readline")
      ls (require "../lib/ls")
      prefix "lispy> ")
 

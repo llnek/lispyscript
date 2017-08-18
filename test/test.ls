@@ -3,9 +3,9 @@
   "1" one "2" two "3" three)
 
 ;; A couple named (as opposed to anonymous) functions
-(function namedFn (x y) 
+(defn namedFn (x y)
   (+ x y))
-(function namedFnNoSpaceBeforeArgs(x y) 
+(defn namedFnNoSpaceBeforeArgs(x y)
   (- x y))
 
 ;; Def testgroup name - lispyscript
@@ -48,7 +48,7 @@
       (var ret 10)
       ret)) "unless test")
 (assert
-  (= -10 
+  (= -10
     (do
       (var i -1)
       (cond
@@ -56,7 +56,7 @@
         (zero? i) 0
         (> i 0) 10))) "condition test less than")
 (assert
-  (= 10 
+  (= 10
     (do
       (var i 1)
       (cond
@@ -64,7 +64,7 @@
         (zero? i) 0
         (> i 0) 10))) "condition test greater than")
 (assert
-  (= 0 
+  (= 0
     (do
       (var i 0)
       (cond
@@ -72,7 +72,7 @@
         (zero? i) 0
         (> i 0) 10))) "condition test equal to")
 (assert
-  (= 10 
+  (= 10
     (do
       (var i Infinity)
       (cond
@@ -90,40 +90,40 @@
     (do
       (var ret 0)
       (each (array 1 2 3 4)
-        (function (val)
-          (set ret (+ ret val))))
+        (fn (val)
+          (set! ret (+ ret val))))
       ret)) "each test")
 (assert
   (= 10
     (do
       (var ret 0)
       (eachKey {a: 1, b: 2, c: 3, d: 4}
-        (function (val)
-          (set ret (+ ret val))))
+        (fn (val)
+          (set! ret (+ ret val))))
       ret)) "eachKey test")
-(assert 
+(assert
   (= 10
     (reduce [1, 2, 3, 4]
-      (function (accum val)
+      (fn (accum val)
         (+ accum val)) 0)) "reduce test with init")
-(assert 
+(assert
   (= 10
     (reduce [1, 2, 3, 4]
-      (function (accum val)
+      (fn (accum val)
         (+ accum val)))) "reduce test without init")
-(assert 
+(assert
   (= 20
-    (reduce (map [1, 2, 3, 4] (function (val) (* val 2)))
-      (function (accum val)
+    (reduce (map [1, 2, 3, 4] (fn (val) (* val 2)))
+      (fn (accum val)
         (+ accum val)) 0)) "map test")
 (assert (= "112233" (testTemplate 1 2 3)) "template test")
 (assert (= "112233" (template-repeat-key {"1":1,"2":2,"3":3} key value)) "template repeat key test")
 (assert
-  (= 10 
-    (try (var i 10) i (function (err)))) "try catch test - try block")
+  (= 10
+    (try (var i 10) i (fn (err)))) "try catch test - try block")
 (assert
-  (= 10 
-    (try (throw 10) (function (err) err))) "try catch test - catch block")
+  (= 10
+    (try (throw 10) (fn (err) err))) "try catch test - catch block")
 (assert
   (= 3
     (doMonad identityMonad (a 1 b (* a 2)) (+ a b))) "Identity Monad Test")
@@ -137,41 +137,41 @@
   (= 54
     (reduce
       (doMonad arrayMonad (a [1,2,3] b [3,4,5]) (+ a b))
-      (function (accum val) (+ accum val))
+      (fn (accum val) (+ accum val))
       0)) "arrayMonad test")
 (assert
   (= 32
     (reduce
       (doMonad arrayMonad (a [1,2,3] b [3,4,5]) (when (<= (+ a b) 6) (+ a b)))
-      (function (accum val) (+ accum val))
+      (fn (accum val) (+ accum val))
       0)) "arrayMonad when test")
 (assert
   (= 6
     (reduce
       (doMonad arrayMonad (a [1,2,0,null,3]) (when a a))
-      (function (accum val) (+ accum val))
+      (fn (accum val) (+ accum val))
       0)) "arrayMonad when null values test")
-(assert 
-  (= 13 
+(assert
+  (= 13
     (namedFn 7 6)) "named function test")
-(assert 
-  (= 7 
+(assert
+  (= 7
     (namedFnNoSpaceBeforeArgs 13 6)) "named function no space test")
 )
 
 ;; Function for running on browser. This function is for
 ;; the test.html file in the same folder.
-(function browserTest ()
+(defn browserTest ()
   (var el (document.getElementById "testresult"))
   (if el.outerHTML
-    (set el.outerHTML (str "<pre>" (testRunner lispyscript "LispyScript Testing") "</pre>"))
-    (set el.innerHTML (testRunner lispyscript "LispyScript Testing"))))
+    (set! el.outerHTML (str "<pre>" (testRunner lispyscript "LispyScript Testing") "</pre>"))
+    (set! el.innerHTML (testRunner lispyscript "LispyScript Testing"))))
 
 ;; If not running on browser
 ;; call test runner with test group lispysript
 ;; otherwise call browserTest
 (if (undefined? window)
   (console.log (testRunner lispyscript "LispyScript Testing"))
-  (set window.onload browserTest))
+  (set! window.onload browserTest))
 
 

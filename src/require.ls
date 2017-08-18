@@ -1,5 +1,5 @@
-(var fs (require "fs")
-   path (require "path")
+(def fs (require "fs")
+     path (require "path")
      ls (require "../lib/ls"))
 
 ;; Register `.ls` file extension so that `ls`

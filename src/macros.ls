@@ -41,7 +41,7 @@
 ;;;;;;;;;;;;;;;;;;;;;;; Expressions ;;;;;;;;;;;;;;;;;;;;
 
 (macro do (rest...)
-  ((function () ~rest...)))
+  ((fn () ~rest...)))
 
 (macro when (cond rest...)
   (if ~cond (do ~rest...)))
@@ -53,13 +53,13 @@
   (if (#args-shift rest...) (#args-shift rest...) (#args-if rest... (cond ~rest...))))
 
 (macro arrayInit (len obj)
-  ((function (l o)
+  ((fn (l o)
     (var ret [])
     (javascript "for(var i=0;i<l;i++) ret.push(o);")
     ret) ~len ~obj))
 
 (macro arrayInit2d (i j obj)
-  ((function (i j o)
+  ((fn (i j o)
     (var ret [])
     (javascript "for(var n=0;n<i;n++){var inn=[];for(var m=0;m<j;m++) inn.push(o); ret.push(inn);}")
     ret) ~i ~j ~obj))
@@ -78,19 +78,19 @@
 (macro reduce (arr rest...)
   ((.reduce ~arr) ~rest...))
 
-(macro eachKey (obj fn rest...)
-  ((function (o f s)
+(macro eachKey (obj func rest...)
+  ((fn (o f s)
     (var _k (Object.keys o))
     (each _k
-      (function (elem)
-        (f.call s (get elem o) elem o)))) ~obj ~fn ~rest...))
+      (fn (elem)
+        (f.call s (get o elem) elem o)))) ~obj ~func ~rest...))
 
-(macro each2d (arr fn)
+(macro each2d (arr func)
   (each ~arr
-    (function (___elem ___i ___oa)
+    (fn (___elem ___i ___oa)
       (each ___elem
-        (function (___val ___j ___ia)
-          (~fn ___val ___j ___i ___ia ___oa))))))
+        (fn (___val ___j ___ia)
+          (~func ___val ___j ___i ___ia ___oa))))))
 
 (macro map (arr rest...)
   ((.map ~arr) ~rest...))
@@ -105,18 +105,18 @@
   (Array.prototype.every.call ~rest...))
 
 (macro loop (args vals rest...)
-  ((function ()
+  ((fn ()
     (var recur null
          ___result !undefined
          ___nextArgs null
-         ___f (function ~args ~rest...))
-    (set recur
-      (function ()
-        (set ___nextArgs arguments)
+         ___f (fn ~args ~rest...))
+    (set! recur
+      (fn ()
+        (set! ___nextArgs arguments)
         (if (= ___result undefined)
           undefined
           (do
-            (set ___result undefined)
+            (set! ___result undefined)
             (javascript "while(___result===undefined) ___result=___f.apply(this,___nextArgs);")
             ___result))))
     (recur ~@vals))))
@@ -128,21 +128,21 @@
 ;;;;;;;;;;;;;;;;;;;; Templates ;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 (macro template (name args rest...)
-  (var ~name
-    (function ~args
+  (def ~name
+    (fn ~args
       (str ~rest...))))
 
 (macro template-repeat (arg rest...)
   (reduce ~arg
-    (function (___memo elem index)
+    (fn (___memo elem index)
       (+ ___memo (str ~rest...))) ""))
 
 (macro template-repeat-key (obj rest...)
   (do
     (var ___ret "")
     (eachKey ~obj
-      (function (value key)
-        (set ___ret (+ ___ret (str ~rest...)))))
+      (fn (value key)
+        (set! ___ret (+ ___ret (str ~rest...)))))
     ___ret))
 
 
@@ -150,15 +150,15 @@
 
 (macro sequence (name args init rest...)
   (var ~name
-    (function ~args
-      ((function ()
+    (fn ~args
+      ((fn ()
         ~@init
         (var next null)
         (var ___curr 0)
         (var ___actions (new Array ~rest...))
-        (set next
-          (function ()
-            (var ne (get ___curr++ ___actions))
+        (set! next
+          (fn ()
+            (var ne (get ___actions ___curr++))
             (if ne
               ne
               (throw "Call to (next) beyond sequence."))))
@@ -174,17 +174,17 @@
 
 (macro testGroup (name rest...)
   (var ~name
-    (function ()
+    (fn ()
       (array ~rest...))))
 
 (macro testRunner (groupname desc)
-  ((function (groupname desc)
+  ((fn (groupname desc)
     (var start (new Date)
          tests (groupname)
          passed 0
          failed 0)
     (each tests
-      (function (elem)
+      (fn (elem)
         (if (elem.match /^Passed/)
           ++passed
           ++failed)))
@@ -201,58 +201,58 @@
 
 (macro identityMonad ()
   (object
-    mBind (function (mv mf) (mf mv))
-    mResult (function (v) v)))
+    mBind (fn (mv mf) (mf mv))
+    mResult (fn (v) v)))
 
 (macro maybeMonad ()
   (object
-    mBind (function (mv mf) (if (null? mv) null (mf mv)))
-    mResult (function (v) v)
+    mBind (fn (mv mf) (if (null? mv) null (mf mv)))
+    mResult (fn (v) v)
     mZero null))
 
 (macro arrayMonad ()
   (object
-    mBind (function (mv mf)
+    mBind (fn (mv mf)
               (reduce
                 (map mv mf)
-                (function (accum val) (accum.concat val))
+                (fn (accum val) (accum.concat val))
                 []))
-    mResult (function (v) [v])
+    mResult (fn (v) [v])
     mZero []
-    mPlus (function ()
+    mPlus (fn ()
               (reduce
                 (Array.prototype.slice.call arguments)
-                (function (accum val) (accum.concat val))
+                (fn (accum val) (accum.concat val))
                 []))))
 
 (macro stateMonad ()
   (object
-    mBind (function (mv f)
-              (function (s)
+    mBind (fn (mv f)
+              (fn (s)
                 (var l (mv s)
-                     v (get 0 l)
-                     ss (get 1 l))
+                     v (get l 0)
+                     ss (get l 1))
                 ((f v) ss)))
-    mResult (function (v) (function (s) [v, s]))))
+    mResult (fn (v) (fn (s) [v, s]))))
 
 (macro continuationMonad ()
   (object
-    mBind (function (mv mf)
-              (function (c)
+    mBind (fn (mv mf)
+              (fn (c)
                 (mv
-                  (function (v)
+                  (fn (v)
                     ((mf v) c)))))
-    mResult (function (v)
-                (function (c)
+    mResult (fn (v)
+                (fn (c)
                   (c v)))))
 
 (macro m-bind (bindings expr)
   (mBind (#args-second bindings)
-    (function ((#args-shift bindings))
-      (#args-if bindings (m-bind ~bindings ~expr) ((function () ~expr))))))
+    (fn ((#args-shift bindings))
+      (#args-if bindings (m-bind ~bindings ~expr) ((fn () ~expr))))))
 
 (macro withMonad (monad rest...)
-  ((function (___monad)
+  ((fn (___monad)
     (var mBind ___monad.mBind
          mResult ___monad.mResult
          mZero ___monad.mZero
@@ -262,41 +262,27 @@
 (macro doMonad (monad bindings expr)
   (withMonad ~monad
     (var ____mResult
-      (function (___arg)
+      (fn (___arg)
         (if (&& (undefined? ___arg) (! (undefined? mZero)))
           mZero
           (mResult ___arg))))
     (m-bind ~bindings (____mResult ~expr))))
 
-(macro monad (name obj)
-  (var ~name
-    (function ()
-      ~obj)))
+(macro monad (name obj) (def ~name (fn () ~obj)))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;clojure-like
 
-;;(defmacro def (rest...) (var ~rest...))
-
-(defmacro def (rest...) (var ~rest...))
 (defmacro and (rest...) (&& ~rest...))
 (defmacro or (rest...) (|| ~rest...))
 (defmacro not (rest...) (! ~rest...))
 (defmacro not= (rest...) (!= ~rest...))
+(defmacro mod (rest...) (% ~rest...))
 (defmacro nil? (rest...) (null? ~rest...))
-
-(defmacro defn
-  (name args rest...)
-  (var ~name
-       (function ~args ~rest...)))
-
-(defmacro fn
-  (args rest...)
-  (function ~args ~rest...))
 
 (defmacro #
   (rest...)
-  (function () ~rest...))
+  (fn () ~rest...))
 
 (defmacro pos?
   (arg)
@@ -318,9 +304,7 @@
   (try ~rest... (fn () )))
 
 (defmacro let* (names vals rest...)
-  ((function ~names ~rest...) ~@vals))
-
-(defmacro set! (rest...) (set ~rest...))
+  ((fn ~names ~rest...) ~@vals))
 
 (defmacro do-with
   (obj expr rest...)

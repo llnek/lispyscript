@@ -6,7 +6,7 @@
      watch (require "watch")
      isValidFlag /-h\b|-r\b|-v\b|-b\b|-s\b|-t\b/
      error
-       (function (err)
+       (fn (err)
          (console.error err.message)
          (process.exit 1)))
 
