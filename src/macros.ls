@@ -55,13 +55,13 @@
 (macro arrayInit (len obj)
   ((fn (l o)
     (var ret [])
-    (javascript "for(var i=0;i<l;i++) ret.push(o);")
+    (js# "for(var i=0;i<l;i++) ret.push(o);")
     ret) ~len ~obj))
 
 (macro arrayInit2d (i j obj)
   ((fn (i j o)
     (var ret [])
-    (javascript "for(var n=0;n<i;n++){var inn=[];for(var m=0;m<j;m++) inn.push(o); ret.push(inn);}")
+    (js# "for(var n=0;n<i;n++){var inn=[];for(var m=0;m<j;m++) inn.push(o); ret.push(inn);}")
     ret) ~i ~j ~obj))
 
 ;; method chaining macro
@@ -117,7 +117,7 @@
           undefined
           (do
             (set! ___result undefined)
-            (javascript "while(___result===undefined) ___result=___f.apply(this,___nextArgs);")
+            (js# "while(___result===undefined) ___result=___f.apply(this,___nextArgs);")
             ___result))))
     (recur ~@vals))))
 
