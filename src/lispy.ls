@@ -122,8 +122,7 @@
 
   ;; set outfile args.shift. ! outfile set outfile to infile(.js)
   outfile
-    (do-with outfile
-             opt.argv[1]
+    (do-with (outfile opt.argv[1])
       (unless outfile
         (set! outfile (infile.replace /\.ls$/ ".js"))
         (if (= outfile infile)

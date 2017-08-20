@@ -3,8 +3,8 @@
 ;(throw (new String (str "poo" (str "face"))))
 
 ;(get (poo.foo (+ 2 "2")) (+ 3 4) )
-(loop (x i) (7 1)
-      (if (= i 10)
-        i
-        (recur x ++i)))
+
+;(let (a (* 3 4) b (* a 2)) (do (+ a b) (+ 4 5)))
+(do-with (a (* 3 4)) (+ a b) (+ 4 5))
+
 

@@ -303,12 +303,12 @@
 (defmacro try! (rest...)
   (try ~rest... (fn () )))
 
-(defmacro let* (names vals rest...)
-  ((fn ~names ~rest...) ~@vals))
+(defmacro let (bindings expr)
+  (doMonad identityMonad ~bindings ~expr))
 
 (defmacro do-with
-  (obj expr rest...)
-  (let* (~obj) (~expr) ~rest... ~obj))
+  (bind-one rest...)
+  (let ~bind-one (do ~rest... (#args-peek bind-one))))
 
 (defmacro do->false (rest...) (do ~rest... false))
 (defmacro do->true (rest...) (do ~rest... true))
