@@ -40,17 +40,17 @@
 
 ;;;;;;;;;;;;;;;;;;;;;;; Expressions ;;;;;;;;;;;;;;;;;;;;
 
-(macro do (rest...)
-  ((fn () ~rest...)))
+(macro do (&args)
+  ((fn () ~&args)))
 
-(macro when (cond rest...)
-  (if ~cond (do ~rest...)))
+(macro when (cond &args)
+  (if ~cond (do ~&args)))
 
-(macro unless (cond rest...)
-  (when (! ~cond) (do ~rest...)))
+(macro unless (cond &args)
+  (when (! ~cond) (do ~&args)))
 
-(macro cond (rest...)
-  (if (#args-shift rest...) (#args-shift rest...) (#args-if rest... (cond ~rest...))))
+(macro cond (&args)
+  (if (#args-shift &args) (#args-shift &args) (#args-if &args (cond ~&args))))
 
 (macro arrayInit (len obj)
   ((fn (l o)
@@ -61,29 +61,29 @@
 (macro arrayInit2d (i j obj)
   ((fn (i j o)
     (var ret [])
-    (js# "for(var n=0;n<i;n++){var inn=[];for(var m=0;m<j;m++) inn.push(o); ret.push(inn);}")
+    (js# "for(var n=0;n<i;n++){let inn=[];for(var m=0;m<j;m++) inn.push(o); ret.push(inn);}")
     ret) ~i ~j ~obj))
 
 ;; method chaining macro
-(macro -> (func form rest...)
-  (#args-if rest...
-    (-> (((#args-shift form) ~func) ~@form) ~rest...)
+(macro -> (func form &args)
+  (#args-if &args
+    (-> (((#args-shift form) ~func) ~@form) ~&args)
     (((#args-shift form) ~func) ~@form)))
 
 ;;;;;;;;;;;;;;;;;;;;;; Iteration and Looping ;;;;;;;;;;;;;;;;;;;;
 
-(macro each (arr rest...)
-  ((.forEach ~arr) ~rest...))
+(macro each (arr &args)
+  ((.forEach ~arr) ~&args))
 
-(macro reduce (arr rest...)
-  ((.reduce ~arr) ~rest...))
+(macro reduce (arr &args)
+  ((.reduce ~arr) ~&args))
 
-(macro eachKey (obj func rest...)
+(macro eachKey (obj func &args)
   ((fn (o f s)
     (var _k (Object.keys o))
     (each _k
       (fn (elem)
-        (f.call s (get o elem) elem o)))) ~obj ~func ~rest...))
+        (f.call s (get o elem) elem o)))) ~obj ~func ~&args))
 
 (macro each2d (arr func)
   (each ~arr
@@ -92,24 +92,24 @@
         (fn (___val ___j ___ia)
           (~func ___val ___j ___i ___ia ___oa))))))
 
-(macro map (arr rest...)
-  ((.map ~arr) ~rest...))
+(macro map (arr &args)
+  ((.map ~arr) ~&args))
 
-(macro filter (rest...)
-  (Array.prototype.filter.call ~rest...))
+(macro filter (&args)
+  (Array.prototype.filter.call ~&args))
 
-(macro some (rest...)
-  (Array.prototype.some.call ~rest...))
+(macro some (&args)
+  (Array.prototype.some.call ~&args))
 
-(macro every (rest...)
-  (Array.prototype.every.call ~rest...))
+(macro every (&args)
+  (Array.prototype.every.call ~&args))
 
-(macro loop (args vals rest...)
+(macro loop (args vals &args)
   ((fn ()
     (var recur null
          ___result !undefined
          ___nextArgs null
-         ___f (fn ~args ~rest...))
+         ___f (fn ~args ~&args))
     (set! recur
       (fn ()
         (set! ___nextArgs arguments)
@@ -121,41 +121,41 @@
             ___result))))
     (recur ~@vals))))
 
-(macro for (rest...)
-  (doMonad arrayMonad ~rest...))
+(macro for (&args)
+  (doMonad arrayMonad ~&args))
 
 
 ;;;;;;;;;;;;;;;;;;;; Templates ;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-(macro template (name args rest...)
+(macro template (name args &args)
   (def ~name
     (fn ~args
-      (str ~rest...))))
+      (str ~&args))))
 
-(macro template-repeat (arg rest...)
+(macro template-repeat (arg &args)
   (reduce ~arg
     (fn (___memo elem index)
-      (+ ___memo (str ~rest...))) ""))
+      (+ ___memo (str ~&args))) ""))
 
-(macro template-repeat-key (obj rest...)
+(macro template-repeat-key (obj &args)
   (do
     (var ___ret "")
     (eachKey ~obj
       (fn (value key)
-        (set! ___ret (+ ___ret (str ~rest...)))))
+        (set! ___ret (+ ___ret (str ~&args)))))
     ___ret))
 
 
 ;;;;;;;;;;;;;;;;;;;; Callback Sequence ;;;;;;;;;;;;;;;;;;;;;
 
-(macro sequence (name args init rest...)
+(macro sequence (name args init &args)
   (var ~name
     (fn ~args
       ((fn ()
         ~@init
         (var next null)
         (var ___curr 0)
-        (var ___actions (new Array ~rest...))
+        (var ___actions (new Array ~&args))
         (set! next
           (fn ()
             (var ne (get ___actions ___curr++))
@@ -172,10 +172,10 @@
     (+ "Passed - " ~message)
     (+ "Failed - " ~message)))
 
-(macro testGroup (name rest...)
+(macro testGroup (name &args)
   (var ~name
     (fn ()
-      (array ~rest...))))
+      (array ~&args))))
 
 (macro testRunner (groupname desc)
   ((fn (groupname desc)
@@ -251,13 +251,13 @@
     (fn ((#args-shift bindings))
       (#args-if bindings (m-bind ~bindings ~expr) ((fn () ~expr))))))
 
-(macro withMonad (monad rest...)
+(macro withMonad (monad &args)
   ((fn (___monad)
     (var mBind ___monad.mBind
          mResult ___monad.mResult
          mZero ___monad.mZero
          mPlus ___monad.mPlus)
-    ~rest...) (~monad)))
+    ~&args) (~monad)))
 
 (macro doMonad (monad bindings expr)
   (withMonad ~monad
@@ -273,16 +273,16 @@
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;clojure-like
 
-(defmacro and (rest...) (&& ~rest...))
-(defmacro or (rest...) (|| ~rest...))
-(defmacro not (rest...) (! ~rest...))
-(defmacro not= (rest...) (!= ~rest...))
-(defmacro mod (rest...) (% ~rest...))
-(defmacro nil? (rest...) (null? ~rest...))
+(defmacro and (&args) (&& ~&args))
+(defmacro or (&args) (|| ~&args))
+(defmacro not (&args) (! ~&args))
+(defmacro not= (&args) (!= ~&args))
+(defmacro mod (&args) (% ~&args))
+(defmacro nil? (&args) (null? ~&args))
 
 (defmacro #
-  (rest...)
-  (fn () ~rest...))
+  (&args)
+  (fn () ~&args))
 
 (defmacro pos?
   (arg)
@@ -293,26 +293,26 @@
   (and (number? ~arg) (< ~arg 0)))
 
 (defmacro when-not
-  (cond rest...)
-  (if (! ~cond) (do ~rest...)))
+  (cond &args)
+  (if (! ~cond) (do ~&args)))
 
 (defmacro if-not
-  (cond rest...)
-  (if (! ~cond) ~rest...))
+  (cond &args)
+  (if (! ~cond) ~&args))
 
-(defmacro try! (rest...)
-  (try ~rest... (fn () )))
+(defmacro try! (&args)
+  (try ~&args (fn () )))
 
 (defmacro let (bindings expr)
   (doMonad identityMonad ~bindings ~expr))
 
 (defmacro do-with
-  (bind-one rest...)
-  (let ~bind-one (do ~rest... (#args-peek bind-one))))
+  (bind-one &args)
+  (let ~bind-one (do ~&args (#args-peek bind-one))))
 
-(defmacro do->false (rest...) (do ~rest... false))
-(defmacro do->true (rest...) (do ~rest... true))
-(defmacro do->nil (rest...) (do ~rest... nil))
+(defmacro do->false (&args) (do ~&args false))
+(defmacro do->true (&args) (do ~&args true))
+(defmacro do->nil (&args) (do ~&args nil))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;EOF
