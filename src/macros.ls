@@ -314,6 +314,14 @@
 (defmacro do->true (&args) (do ~&args true))
 (defmacro do->nil (&args) (do ~&args nil))
 
+
+(defmacro dotimes (bind-one &args)
+  (loop ((#args-peek bind-one) times)
+        (0 (#args-pook bind-one))
+    (if (> times (#args-peek bind-one))
+      (do ~&args (recur (+ (#args-peek bind-one) 1) times)))))
+
+
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;EOF
 
