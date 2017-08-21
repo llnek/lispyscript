@@ -280,6 +280,14 @@
 (defmacro mod (&args) (% ~&args))
 (defmacro nil? (&args) (null? ~&args))
 
+(defmacro bit-and (&args) (& ~&args))
+(defmacro bit-or (&args) (| ~&args))
+(defmacro bit-xor (&args) (^ ~&args))
+
+(defmacro bit-shift-right-zero (&args) (>>> ~&args))
+(defmacro bit-shift-right (&args) (>> ~&args))
+(defmacro bit-shift-left (&args) (<< ~&args))
+
 (defmacro #
   (&args)
   (fn () ~&args))
@@ -303,12 +311,17 @@
 (defmacro try! (&args)
   (try ~&args (fn () )))
 
-(defmacro let (bindings expr)
+(defmacro let* (bindings expr)
   (doMonad identityMonad ~bindings ~expr))
+
+(defmacro let (bindings &args)
+  (do
+    (var ~@bindings)
+    ~&args))
 
 (defmacro do-with
   (bind-one &args)
-  (let ~bind-one (do ~&args (#args-peek bind-one))))
+  (let ~bind-one (do ~&args (#args-peek ~bind-one))))
 
 (defmacro do->false (&args) (do ~&args false))
 (defmacro do->true (&args) (do ~&args true))
@@ -316,10 +329,10 @@
 
 
 (defmacro dotimes (bind-one &args)
-  (loop ((#args-peek bind-one) times)
-        (0 (#args-pook bind-one))
-    (if (> times (#args-peek bind-one))
-      (do ~&args (recur (+ (#args-peek bind-one) 1) times)))))
+  (loop ((#args-peek ~bind-one) times)
+        (0 (#args-pook ~bind-one))
+    (if (> times (#args-peek ~bind-one))
+      (do ~&args (recur (+ (#args-peek ~bind-one) 1) times)))))
 
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
