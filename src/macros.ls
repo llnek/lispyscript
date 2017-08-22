@@ -4,107 +4,107 @@
 
 ;;;;;;;;;;;;;;;;;;;; Conditionals ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-(macro undefined? (obj)
+(defmacro undefined? (obj)
   (= (typeof ~obj) "undefined"))
 
-(macro null? (obj)
+(defmacro null? (obj)
   (= ~obj null))
 
-(macro true? (obj)
+(defmacro true? (obj)
   (= true ~obj))
 
-(macro false? (obj)
+(defmacro false? (obj)
   (= false ~obj))
 
-(macro boolean? (obj)
+(defmacro boolean? (obj)
   (= (typeof ~obj) "boolean"))
 
-(macro zero? (obj)
+(defmacro zero? (obj)
   (= 0 ~obj))
 
-(macro number? (obj)
+(defmacro number? (obj)
   (= (Object.prototype.toString.call ~obj) "[object Number]"))
 
-(macro string? (obj)
+(defmacro string? (obj)
   (= (Object.prototype.toString.call ~obj) "[object String]"))
 
-(macro array? (obj)
+(defmacro array? (obj)
   (= (Object.prototype.toString.call ~obj) "[object Array]"))
 
-(macro object? (obj)
+(defmacro object? (obj)
   (= (Object.prototype.toString.call ~obj) "[object Object]"))
 
-(macro function? (obj)
+(defmacro function? (obj)
   (= (Object.prototype.toString.call ~obj) "[object Function]"))
 
 
 ;;;;;;;;;;;;;;;;;;;;;;; Expressions ;;;;;;;;;;;;;;;;;;;;
 
-(macro do (&args)
+(defmacro do (&args)
   ((fn () ~&args)))
 
-(macro when (cond &args)
+(defmacro when (cond &args)
   (if ~cond (do ~&args)))
 
-(macro unless (cond &args)
+(defmacro unless (cond &args)
   (when (! ~cond) (do ~&args)))
 
-(macro cond (&args)
+(defmacro cond (&args)
   (if (#<< &args) (#<< &args) (#if &args (cond ~&args))))
 
-(macro arrayInit (len obj)
+(defmacro arrayInit (len obj)
   ((fn (l o)
     (var ret [])
     (js# "for(var i=0;i<l;i++) ret.push(o);")
     ret) ~len ~obj))
 
-(macro arrayInit2d (i j obj)
+(defmacro arrayInit2d (i j obj)
   ((fn (i j o)
     (var ret [])
     (js# "for(var n=0;n<i;n++){let inn=[];for(var m=0;m<j;m++) inn.push(o); ret.push(inn);}")
     ret) ~i ~j ~obj))
 
 ;; method chaining macro
-(macro -> (func form &args)
+(defmacro -> (func form &args)
   (#if &args
     (-> (((#<< form) ~func) ~@form) ~&args)
     (((#<< form) ~func) ~@form)))
 
 ;;;;;;;;;;;;;;;;;;;;;; Iteration and Looping ;;;;;;;;;;;;;;;;;;;;
 
-(macro each (arr &args)
+(defmacro each (arr &args)
   ((.forEach ~arr) ~&args))
 
-(macro reduce (arr &args)
+(defmacro reduce (arr &args)
   ((.reduce ~arr) ~&args))
 
-(macro eachKey (obj func &args)
+(defmacro eachKey (obj func &args)
   ((fn (o f s)
     (var _k (Object.keys o))
     (each _k
       (fn (elem)
         (f.call s (get o elem) elem o)))) ~obj ~func ~&args))
 
-(macro each2d (arr func)
+(defmacro each2d (arr func)
   (each ~arr
     (fn (___elem ___i ___oa)
       (each ___elem
         (fn (___val ___j ___ia)
           (~func ___val ___j ___i ___ia ___oa))))))
 
-(macro map (arr &args)
+(defmacro map (arr &args)
   ((.map ~arr) ~&args))
 
-(macro filter (&args)
+(defmacro filter (&args)
   (Array.prototype.filter.call ~&args))
 
-(macro some (&args)
+(defmacro some (&args)
   (Array.prototype.some.call ~&args))
 
-(macro every (&args)
+(defmacro every (&args)
   (Array.prototype.every.call ~&args))
 
-(macro loop (args vals &args)
+(defmacro loop (args vals &args)
   ((fn ()
     (var recur null
          ___result !undefined
@@ -121,23 +121,23 @@
             ___result))))
     (recur ~@vals))))
 
-(macro for (&args)
+(defmacro for (&args)
   (doMonad arrayMonad ~&args))
 
 
 ;;;;;;;;;;;;;;;;;;;; Templates ;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-(macro template (name args &args)
+(defmacro template (name args &args)
   (def ~name
     (fn ~args
       (str ~&args))))
 
-(macro template-repeat (arg &args)
+(defmacro template-repeat (arg &args)
   (reduce ~arg
     (fn (___memo elem index)
       (+ ___memo (str ~&args))) ""))
 
-(macro template-repeat-key (obj &args)
+(defmacro template-repeat-key (obj &args)
   (do
     (var ___ret "")
     (eachKey ~obj
@@ -148,7 +148,7 @@
 
 ;;;;;;;;;;;;;;;;;;;; Callback Sequence ;;;;;;;;;;;;;;;;;;;;;
 
-(macro sequence (name args init &args)
+(defmacro sequence (name args init &args)
   (var ~name
     (fn ~args
       ((fn ()
@@ -167,17 +167,17 @@
 
 ;;;;;;;;;;;;;;;;;;; Unit Testing ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-(macro assert (cond message)
+(defmacro assert (cond message)
   (if (true? ~cond)
     (+ "Passed - " ~message)
     (+ "Failed - " ~message)))
 
-(macro testGroup (name &args)
+(defmacro testGroup (name &args)
   (var ~name
     (fn ()
       (array ~&args))))
 
-(macro testRunner (groupname desc)
+(defmacro testRunner (groupname desc)
   ((fn (groupname desc)
     (var start (new Date)
          tests (groupname)
@@ -199,18 +199,18 @@
 
 ;;;;;;;;;;;;;;;; Monads ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-(macro identityMonad ()
+(defmacro identityMonad ()
   (object
     mBind (fn (mv mf) (mf mv))
     mResult (fn (v) v)))
 
-(macro maybeMonad ()
+(defmacro maybeMonad ()
   (object
     mBind (fn (mv mf) (if (null? mv) null (mf mv)))
     mResult (fn (v) v)
     mZero null))
 
-(macro arrayMonad ()
+(defmacro arrayMonad ()
   (object
     mBind (fn (mv mf)
               (reduce
@@ -225,7 +225,7 @@
                 (fn (accum val) (accum.concat val))
                 []))))
 
-(macro stateMonad ()
+(defmacro stateMonad ()
   (object
     mBind (fn (mv f)
               (fn (s)
@@ -235,7 +235,7 @@
                 ((f v) ss)))
     mResult (fn (v) (fn (s) [v, s]))))
 
-(macro continuationMonad ()
+(defmacro continuationMonad ()
   (object
     mBind (fn (mv mf)
               (fn (c)
@@ -246,12 +246,12 @@
                 (fn (c)
                   (c v)))))
 
-(macro m-bind (bindings expr)
+(defmacro m-bind (bindings expr)
   (mBind (#slice@2 bindings)
     (fn ((#<< bindings))
       (#if bindings (m-bind ~bindings ~expr) ((fn () ~expr))))))
 
-(macro withMonad (monad &args)
+(defmacro withMonad (monad &args)
   ((fn (___monad)
     (var mBind ___monad.mBind
          mResult ___monad.mResult
@@ -259,7 +259,7 @@
          mPlus ___monad.mPlus)
     ~&args) (~monad)))
 
-(macro doMonad (monad bindings expr)
+(defmacro doMonad (monad bindings expr)
   (withMonad ~monad
     (var ____mResult
       (fn (___arg)
@@ -268,7 +268,7 @@
           (mResult ___arg))))
     (m-bind ~bindings (____mResult ~expr))))
 
-(macro monad (name obj) (def ~name (fn () ~obj)))
+(defmacro monad (name obj) (def ~name (fn () ~obj)))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;clojure-like
@@ -326,7 +326,6 @@
 (defmacro do->false (&args) (do ~&args false))
 (defmacro do->true (&args) (do ~&args true))
 (defmacro do->nil (&args) (do ~&args nil))
-
 
 (defmacro dotimes (bind-one &args)
   (loop ((#head ~bind-one) times)
