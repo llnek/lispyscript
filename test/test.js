@@ -179,7 +179,7 @@ let lispyscript = function () {
           3,
           4
         ]).forEach(function (val) {
-          ret = (ret + val);
+          return ret = (ret + val);
         });
         return ret;
       })())) ?
@@ -193,7 +193,7 @@ let lispyscript = function () {
             return f.call(s,o[elem],elem,o);
           });
         })({a: 1, b: 2, c: 3, d: 4},function (val) {
-          ret = (ret + val);
+          return ret = (ret + val);
         });
         return ret;
       })())) ?
@@ -227,7 +227,7 @@ let lispyscript = function () {
             return f.call(s,o[elem],elem,o);
           });
         })({"1":1,"2":2,"3":3},function (value,key) {
-          ___ret = (___ret + [key,value].join(''));
+          return ___ret = (___ret + [key,value].join(''));
         });
         return ___ret;
       })())) ?

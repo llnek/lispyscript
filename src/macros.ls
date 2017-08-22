@@ -50,7 +50,7 @@
   (when (! ~cond) (do ~&args)))
 
 (macro cond (&args)
-  (if (#args-shift &args) (#args-shift &args) (#args-if &args (cond ~&args))))
+  (if (#<< &args) (#<< &args) (#if &args (cond ~&args))))
 
 (macro arrayInit (len obj)
   ((fn (l o)
@@ -66,9 +66,9 @@
 
 ;; method chaining macro
 (macro -> (func form &args)
-  (#args-if &args
-    (-> (((#args-shift form) ~func) ~@form) ~&args)
-    (((#args-shift form) ~func) ~@form)))
+  (#if &args
+    (-> (((#<< form) ~func) ~@form) ~&args)
+    (((#<< form) ~func) ~@form)))
 
 ;;;;;;;;;;;;;;;;;;;;;; Iteration and Looping ;;;;;;;;;;;;;;;;;;;;
 
@@ -247,9 +247,9 @@
                   (c v)))))
 
 (macro m-bind (bindings expr)
-  (mBind (#args-second bindings)
-    (fn ((#args-shift bindings))
-      (#args-if bindings (m-bind ~bindings ~expr) ((fn () ~expr))))))
+  (mBind (#slice@2 bindings)
+    (fn ((#<< bindings))
+      (#if bindings (m-bind ~bindings ~expr) ((fn () ~expr))))))
 
 (macro withMonad (monad &args)
   ((fn (___monad)
@@ -321,7 +321,7 @@
 
 (defmacro do-with
   (bind-one &args)
-  (let ~bind-one (do ~&args (#args-peek ~bind-one))))
+  (let ~bind-one (do ~&args (#head ~bind-one))))
 
 (defmacro do->false (&args) (do ~&args false))
 (defmacro do->true (&args) (do ~&args true))
@@ -329,10 +329,10 @@
 
 
 (defmacro dotimes (bind-one &args)
-  (loop ((#args-peek ~bind-one) times)
-        (0 (#args-pook ~bind-one))
-    (if (> times (#args-peek ~bind-one))
-      (do ~&args (recur (+ (#args-peek ~bind-one) 1) times)))))
+  (loop ((#head ~bind-one) times)
+        (0 (#tail ~bind-one))
+    (if (> times (#head ~bind-one))
+      (do ~&args (recur (+ (#head ~bind-one) 1) times)))))
 
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
