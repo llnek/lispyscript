@@ -126,29 +126,29 @@
     (try (throw 10) (fn (err) err))) "try catch test - catch block")
 (assert
   (= 3
-    (doMonad identityMonad (a 1 b (* a 2)) (+ a b))) "Identity Monad Test")
+    (do-monad m-identity (a 1 b (* a 2)) (+ a b))) "Identity Monad Test")
 (assert
   (= 3
-    (doMonad maybeMonad (a 1 b (* a 2)) (+ a b))) "maybe Monad Test")
+    (do-monad m-maybe (a 1 b (* a 2)) (+ a b))) "maybe Monad Test")
 (assert
   (= null
-    (doMonad maybeMonad (a null b (* a 2)) (+ a b))) "maybe Monad null Test")
+    (do-monad m-maybe (a null b (* a 2)) (+ a b))) "maybe Monad null Test")
 (assert
   (= 54
     (reduce
-      (doMonad arrayMonad (a [1,2,3] b [3,4,5]) (+ a b))
+      (do-monad m-array (a [1,2,3] b [3,4,5]) (+ a b))
       (fn (accum val) (+ accum val))
       0)) "arrayMonad test")
 (assert
   (= 32
     (reduce
-      (doMonad arrayMonad (a [1,2,3] b [3,4,5]) (when (<= (+ a b) 6) (+ a b)))
+      (do-monad m-array (a [1,2,3] b [3,4,5]) (when (<= (+ a b) 6) (+ a b)))
       (fn (accum val) (+ accum val))
       0)) "arrayMonad when test")
 (assert
   (= 6
     (reduce
-      (doMonad arrayMonad (a [1,2,0,null,3]) (when a a))
+      (do-monad m-array (a [1,2,0,null,3]) (when a a))
       (fn (accum val) (+ accum val))
       0)) "arrayMonad when null values test")
 (assert

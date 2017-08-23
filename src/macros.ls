@@ -110,25 +110,23 @@
 (defmacro every (&args)
   (Array.prototype.every.call ~&args))
 
-(defmacro loop (args vals &args)
-  ((fn ()
-    (var recur null
-         ___result !undefined
-         ___nextArgs null
-         ___f (fn ~args ~&args))
+(defmacro loop (bind-args vals &args)
+  ((#
+    (var ___ret !undefined
+         ___xs null
+         recur null
+         ___f (fn ~bind-args ~&args))
     (set! recur
       (fn ()
-        (set! ___nextArgs arguments)
-        (if (= ___result undefined)
-          undefined
-          (do
-            (set! ___result undefined)
-            (js# "while(___result===undefined) ___result=___f.apply(this,___nextArgs);")
-            ___result))))
+        (set! ___xs arguments)
+        (when (def? ___ret)
+          (set! ___ret undefined)
+          (js# "while (___ret===undefined) ___ret=___f.apply(this,___xs);")
+          ___ret)))
     (recur ~@vals))))
 
 (defmacro for (&args)
-  (doMonad arrayMonad ~&args))
+  (do-monad m-array ~&args))
 
 
 ;;;;;;;;;;;;;;;;;;;; Templates ;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -205,21 +203,18 @@
 
 ;;;;;;;;;;;;;;;; Monads ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-(defmacro monad (fBind fUnit fZero fPlus)
-  (object bind ~fBind unit fUnit zero fZero plus fPlus))
-
-(defmacro identityMonad ()
+(defmacro m-identity ()
   (object
     bind (fn (mv mf) (mf mv))
     unit (fn (v) v)))
 
-(defmacro maybeMonad ()
+(defmacro m-maybe ()
   (object
     bind (fn (mv mf) (if (null? mv) null (mf mv)))
     unit (fn (v) v)
     zero null))
 
-(defmacro arrayMonad ()
+(defmacro m-array ()
   (object
     bind (fn (mv mf)
               (reduce
@@ -234,7 +229,7 @@
             (fn (accum val) (accum.concat val))
             []))))
 
-(defmacro stateMonad ()
+(defmacro m-state ()
   (object
     bind (fn (mv f)
               (fn (s)
@@ -244,7 +239,7 @@
                 ((f v) ss)))
     unit (fn (v) (fn (s) [v, s]))))
 
-(defmacro continuationMonad ()
+(defmacro m-continuation ()
   (object
     bind (fn (mv mf)
               (fn (c)
@@ -262,7 +257,7 @@
         (m-bind ~binder ~bindings ~expr)
         ((# ~expr))))))
 
-(defmacro doMonad (monad bindings expr)
+(defmacro do-monad (monad bindings expr)
   ((fn (___m)
     (var ___u
          (fn (v)
@@ -304,6 +299,10 @@
   (arg)
   (and (number? ~arg) (< ~arg 0)))
 
+(defmacro inc (x) (+ ~x 1))
+
+(defmacro dec (x) (- ~x 1))
+
 (defmacro when-not
   (cond &args)
   (if (! ~cond) (do ~&args)))
@@ -316,7 +315,7 @@
   (try ~&args (fn () )))
 
 (defmacro let* (bindings expr)
-  (doMonad identityMonad ~bindings ~expr))
+  (do-monad m-identity ~bindings ~expr))
 
 (defmacro let (bindings &args)
   (do
@@ -335,7 +334,7 @@
   (loop ((#head ~bind-one) times)
         (0 (#tail ~bind-one))
     (if (> times (#head ~bind-one))
-      (do ~&args (recur (+ (#head ~bind-one) 1) times)))))
+      (do ~&args (recur (inc (#head ~bind-one)) times)))))
 
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;

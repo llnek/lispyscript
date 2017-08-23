@@ -32,7 +32,7 @@
 ;; We use maybe monad to carry out each step, so that we can
 ;; halt the operation anytime in between if needed.
 
-(doMonad maybeMonad
+(do-monad m-maybe
 
   ;; Start maybe Monad bindings
 
