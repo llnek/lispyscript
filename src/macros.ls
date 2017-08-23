@@ -4,17 +4,43 @@
 
 ;;;;;;;;;;;;;;;;;;;; Conditionals ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-(defmacro some? (obj)
-  (not (or (undef? obj) (null? obj))))
+(defmacro whatis? (obj)
+  (Object.prototype.toString.call ~obj))
 
-(defmacro def? (obj)
-  (not= (typeof ~obj) "undefined"))
+(defmacro string? (obj)
+  (= (whatis? ~obj) "[object String]"))
+
+(defmacro fn? (obj)
+  (= (whatis? ~obj) "[object Function]"))
+
+(defmacro date? (obj)
+  (= (whatis? ~obj) "[object Date]"))
+
+(defmacro number? (obj)
+  (= (whatis? ~obj) "[object Number]"))
+
+(defmacro regex? (obj)
+  (= (whatis? ~obj) "[object RegExp]"))
+
+(defmacro boolean? (obj)
+  (= (whatis? ~obj) "[object Boolean]"))
+
+(defmacro array? (obj)
+  (= (whatis? ~obj) "[object Array]"))
+
+(defmacro object? (obj)
+  (= (whatis? ~obj) "[object Object]"))
+
+(defmacro null? (obj)
+  (= (whatis? ~obj) "[object Null]"))
 
 (defmacro undef? (obj)
   (= (typeof ~obj) "undefined"))
 
-(defmacro null? (obj)
-  (= ~obj null))
+(defmacro some? (obj)
+  (not (or (undef? ~obj) (null? ~obj))))
+
+(defmacro def? (obj) (not (undef? ~obj)))
 
 (defmacro true? (obj)
   (= true ~obj))
@@ -22,41 +48,21 @@
 (defmacro false? (obj)
   (= false ~obj))
 
-(defmacro boolean? (obj)
-  (= (typeof ~obj) "boolean"))
-
 (defmacro zero? (obj)
   (= 0 ~obj))
 
-(defmacro number? (obj)
-  (= (Object.prototype.toString.call ~obj) "[object Number]"))
-
-(defmacro string? (obj)
-  (= (Object.prototype.toString.call ~obj) "[object String]"))
-
-(defmacro array? (obj)
-  (= (Object.prototype.toString.call ~obj) "[object Array]"))
-
-(defmacro object? (obj)
-  (= (Object.prototype.toString.call ~obj) "[object Object]"))
-
-(defmacro function? (obj)
-  (= (Object.prototype.toString.call ~obj) "[object Function]"))
-
-
 ;;;;;;;;;;;;;;;;;;;;;;; Expressions ;;;;;;;;;;;;;;;;;;;;
 
-(defmacro do (&args)
-  ((fn () ~&args)))
+(defmacro unless (cond &args) (when (! ~cond) ~&args))
 
-(defmacro when (cond &args)
-  (if ~cond (do ~&args)))
+(defmacro when (cond &args) (if ~cond (do ~&args)))
 
-(defmacro unless (cond &args)
-  (when (! ~cond) (do ~&args)))
+(defmacro do (&args) ((# ~&args)))
 
 (defmacro cond (&args)
-  (if (#<< &args) (#<< &args) (#if &args (cond ~&args))))
+  (if (#<< &args)
+    (#<< &args)
+    (#if &args (cond ~&args))))
 
 (defmacro arrayInit (len obj)
   ((fn (l o)
@@ -110,20 +116,17 @@
 (defmacro every (&args)
   (Array.prototype.every.call ~&args))
 
-(defmacro loop (bind-args vals &args)
-  ((#
-    (var ___ret !undefined
-         ___xs null
-         recur null
-         ___f (fn ~bind-args ~&args))
-    (set! recur
-      (fn ()
-        (set! ___xs arguments)
-        (when (def? ___ret)
-          (set! ___ret undefined)
-          (js# "while (___ret===undefined) ___ret=___f.apply(this,___xs);")
-          ___ret)))
-    (recur ~@vals))))
+(defmacro loop (bind-args bind-vals &args)
+  ((# (var recur nil ___xs nil
+           ___f (fn ~bind-args ~&args) ___ret ___f)
+      (set! recur
+            (# (set! ___xs arguments)
+               (when (def? ___ret)
+                 (js# "for (___ret=undefined; ___ret===undefined; ")
+                 (js# "     ___ret=___f.apply(this,___xs));")
+                 ___ret)))
+      (recur ~@bind-vals))))
+
 
 (defmacro for (&args)
   (do-monad m-array ~&args))
@@ -155,31 +158,24 @@
 (defmacro sequence (name args init &args)
   (var ~name
     (fn ~args
-      ((fn ()
-        ~@init
-        (var next null)
-        (var ___curr 0)
-        (var ___actions (new Array ~&args))
-        (set! next
-          (fn ()
-            (var ne (get ___actions ___curr++))
-            (if ne
-              ne
-              (throw "Call to (next) beyond sequence."))))
-        ((next)))))))
-
+      ((# ~@init
+          (var next nil)
+          (var ___curr 0)
+          (var ___actions (new Array ~&args))
+          (set! next
+            (# (var ne (get ___actions ++___curr))
+               (if ne ne (throw "Call to (next) beyond sequence."))))
+          ((next)))))))
 
 ;;;;;;;;;;;;;;;;;;; Unit Testing ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 (defmacro assert (cond message)
   (if (true? ~cond)
-    (+ "Passed - " ~message)
-    (+ "Failed - " ~message)))
+    (str "Passed - " ~message)
+    (str "Failed - " ~message)))
 
 (defmacro testGroup (name &args)
-  (var ~name
-    (fn ()
-      (array ~&args))))
+  (var ~name (# (array ~&args))))
 
 (defmacro testRunner (groupname desc)
   ((fn (groupname desc)
@@ -311,8 +307,7 @@
   (cond &args)
   (if (! ~cond) ~&args))
 
-(defmacro try! (&args)
-  (try ~&args (fn () )))
+(defmacro try! (&args) (try ~&args (# )))
 
 (defmacro let* (bindings expr)
   (do-monad m-identity ~bindings ~expr))
@@ -324,18 +319,54 @@
 
 (defmacro do-with
   (bind-one &args)
-  (let ~bind-one (do ~&args (#head ~bind-one))))
+  (let ~bind-one (do ~&args (#head bind-one))))
 
 (defmacro do->false (&args) (do ~&args false))
 (defmacro do->true (&args) (do ~&args true))
 (defmacro do->nil (&args) (do ~&args nil))
 
 (defmacro dotimes (bind-one &args)
-  (loop ((#head ~bind-one) times)
-        (0 (#tail ~bind-one))
-    (if (> times (#head ~bind-one))
-      (do ~&args (recur (inc (#head ~bind-one)) times)))))
+  (loop ((#head bind-one) times)
+        (0 (#tail bind-one))
+    (when (> times (#head bind-one))
+      ~&args
+      (recur (inc (#head bind-one)) times))))
 
+(defmacro constantly (x) (do (# ~x)))
+
+(defmacro identity (x) (do ~x))
+
+(defmacro if-some (bind-one then else)
+  (do
+    (var (#head bind-one)
+         (#tail bind-one))
+    (if (some? (#head bind-one))
+      ~then
+      ~else)))
+
+(defmacro when-some (bind-one &args)
+  (do
+    (var (#head bind-one)
+         (#tail bind-one))
+    (when (some? (#head bind-one)) ~&args)))
+
+(defmacro repeat (n expr)
+  (do (var _x ~expr)
+      (repeat-n ~n _x)))
+
+(defmacro count* (x)
+      (if (or (array? ~x)
+              (string? ~x))
+        (.-length ~x)
+        (if (object? ~x)
+          (.-length (Object.keys ~x)) 0)))
+
+(defmacro count (x)
+  (do (var _x ~x) (count* _x)))
+
+(defmacro empty? (x)
+  (do (var _x ~x)
+      (if (some? _x) (zero? (count* _x)) true)))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;EOF
