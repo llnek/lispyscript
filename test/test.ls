@@ -16,8 +16,8 @@
 (assert (true? true) "(true? true)")
 (assert (false? false) "(false? false)")
 (assert (false? (true? {})) "(false? (true? {}))")
-(assert (undefined? undefined) "(undefined? undefined)")
-(assert (false? (undefined? null)) "(false? (undefined? null))")
+(assert (undef? undefined) "(undefined? undefined)")
+(assert (false? (undef? null)) "(false? (undefined? null))")
 (assert (null? null) "(null? null)")
 (assert (false? (null? undefined)) "(false? (null? undefined))")
 (assert (zero? 0) "(zero? 0)")
@@ -170,7 +170,7 @@
 ;; If not running on browser
 ;; call test runner with test group lispysript
 ;; otherwise call browserTest
-(if (undefined? window)
+(if (undef? window)
   (console.log (testRunner lispyscript "LispyScript Testing"))
   (set! window.onload browserTest))
 

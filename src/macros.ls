@@ -4,7 +4,13 @@
 
 ;;;;;;;;;;;;;;;;;;;; Conditionals ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-(defmacro undefined? (obj)
+(defmacro some? (obj)
+  (not (or (undef? obj) (null? obj))))
+
+(defmacro def? (obj)
+  (not= (typeof ~obj) "undefined"))
+
+(defmacro undef? (obj)
   (= (typeof ~obj) "undefined"))
 
 (defmacro null? (obj)
@@ -199,79 +205,77 @@
 
 ;;;;;;;;;;;;;;;; Monads ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
+(defmacro monad (fBind fUnit fZero fPlus)
+  (object bind ~fBind unit fUnit zero fZero plus fPlus))
+
 (defmacro identityMonad ()
   (object
-    mBind (fn (mv mf) (mf mv))
-    mResult (fn (v) v)))
+    bind (fn (mv mf) (mf mv))
+    unit (fn (v) v)))
 
 (defmacro maybeMonad ()
   (object
-    mBind (fn (mv mf) (if (null? mv) null (mf mv)))
-    mResult (fn (v) v)
-    mZero null))
+    bind (fn (mv mf) (if (null? mv) null (mf mv)))
+    unit (fn (v) v)
+    zero null))
 
 (defmacro arrayMonad ()
   (object
-    mBind (fn (mv mf)
+    bind (fn (mv mf)
               (reduce
                 (map mv mf)
                 (fn (accum val) (accum.concat val))
                 []))
-    mResult (fn (v) [v])
-    mZero []
-    mPlus (fn ()
-              (reduce
-                (Array.prototype.slice.call arguments)
-                (fn (accum val) (accum.concat val))
-                []))))
+    unit (fn (v) [v])
+    zero []
+    plus (#
+          (reduce
+            (Array.prototype.slice.call arguments)
+            (fn (accum val) (accum.concat val))
+            []))))
 
 (defmacro stateMonad ()
   (object
-    mBind (fn (mv f)
+    bind (fn (mv f)
               (fn (s)
                 (var l (mv s)
                      v (get l 0)
                      ss (get l 1))
                 ((f v) ss)))
-    mResult (fn (v) (fn (s) [v, s]))))
+    unit (fn (v) (fn (s) [v, s]))))
 
 (defmacro continuationMonad ()
   (object
-    mBind (fn (mv mf)
+    bind (fn (mv mf)
               (fn (c)
                 (mv
                   (fn (v)
                     ((mf v) c)))))
-    mResult (fn (v)
+    unit (fn (v)
                 (fn (c)
                   (c v)))))
 
-(defmacro m-bind (bindings expr)
-  (mBind (#slice@2 bindings)
+(defmacro m-bind (binder bindings expr)
+  (~binder (#slice@2 bindings)
     (fn ((#<< bindings))
-      (#if bindings (m-bind ~bindings ~expr) ((fn () ~expr))))))
-
-(defmacro withMonad (monad &args)
-  ((fn (___monad)
-    (var mBind ___monad.mBind
-         mResult ___monad.mResult
-         mZero ___monad.mZero
-         mPlus ___monad.mPlus)
-    ~&args) (~monad)))
+      (#if bindings
+        (m-bind ~binder ~bindings ~expr)
+        ((# ~expr))))))
 
 (defmacro doMonad (monad bindings expr)
-  (withMonad ~monad
-    (var ____mResult
-      (fn (___arg)
-        (if (&& (undefined? ___arg) (! (undefined? mZero)))
-          mZero
-          (mResult ___arg))))
-    (m-bind ~bindings (____mResult ~expr))))
-
-(defmacro monad (name obj) (def ~name (fn () ~obj)))
+  ((fn (___m)
+    (var ___u
+         (fn (v)
+           (if (and (undef? v)
+                    (def? ___m.zero))
+             ___m.zero
+             (___m.unit v))))
+    (m-bind ___m.bind ~bindings (___u ~expr)))(~monad)))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;clojure-like
+
+(defmacro defmonad (name obj) (def ~name (# ~obj)))
 
 (defmacro and (&args) (&& ~&args))
 (defmacro or (&args) (|| ~&args))

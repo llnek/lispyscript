@@ -257,121 +257,105 @@ let lispyscript = function () {
       })())) ?
       ("Passed - " + "try catch test - catch block") :
       ("Failed - " + "try catch test - catch block")),
-    ((true === (3 === (function (___monad) {
-        let mBind = ___monad.mBind,
-          mResult = ___monad.mResult,
-          mZero = ___monad.mZero,
-          mPlus = ___monad.mPlus;
-        let ____mResult = function (___arg) {
-          return (((typeof(___arg) === "undefined") && (!(typeof(mZero) === "undefined"))) ?
-            mZero :
-            mResult(___arg));
+    ((true === (3 === (function (___m) {
+        let ___u = function (v) {
+          return (((typeof(v) === "undefined") && (typeof(___m.zero) !== "undefined")) ?
+            ___m.zero :
+            ___m.unit(v));
         };
-        return mBind(1,function (a) {
-          return mBind((a * 2),function (b) {
+        return ___m.bind(1,function (a) {
+          return ___m.bind((a * 2),function (b) {
             return (function () {
-              return ____mResult((a + b));
+              return ___u((a + b));
             })();
           });
         });
       })({
-        mBind: function (mv,mf) {
+        bind: function (mv,mf) {
           return mf(mv);
         },
-        mResult: function (v) {
+        unit: function (v) {
           return v;
         }
       }))) ?
       ("Passed - " + "Identity Monad Test") :
       ("Failed - " + "Identity Monad Test")),
-    ((true === (3 === (function (___monad) {
-        let mBind = ___monad.mBind,
-          mResult = ___monad.mResult,
-          mZero = ___monad.mZero,
-          mPlus = ___monad.mPlus;
-        let ____mResult = function (___arg) {
-          return (((typeof(___arg) === "undefined") && (!(typeof(mZero) === "undefined"))) ?
-            mZero :
-            mResult(___arg));
+    ((true === (3 === (function (___m) {
+        let ___u = function (v) {
+          return (((typeof(v) === "undefined") && (typeof(___m.zero) !== "undefined")) ?
+            ___m.zero :
+            ___m.unit(v));
         };
-        return mBind(1,function (a) {
-          return mBind((a * 2),function (b) {
+        return ___m.bind(1,function (a) {
+          return ___m.bind((a * 2),function (b) {
             return (function () {
-              return ____mResult((a + b));
+              return ___u((a + b));
             })();
           });
         });
       })({
-        mBind: function (mv,mf) {
+        bind: function (mv,mf) {
           return ((mv === null) ?
             null :
             mf(mv));
         },
-        mResult: function (v) {
+        unit: function (v) {
           return v;
         },
-        mZero: null
+        zero: null
       }))) ?
       ("Passed - " + "maybe Monad Test") :
       ("Failed - " + "maybe Monad Test")),
-    ((true === (null === (function (___monad) {
-        let mBind = ___monad.mBind,
-          mResult = ___monad.mResult,
-          mZero = ___monad.mZero,
-          mPlus = ___monad.mPlus;
-        let ____mResult = function (___arg) {
-          return (((typeof(___arg) === "undefined") && (!(typeof(mZero) === "undefined"))) ?
-            mZero :
-            mResult(___arg));
+    ((true === (null === (function (___m) {
+        let ___u = function (v) {
+          return (((typeof(v) === "undefined") && (typeof(___m.zero) !== "undefined")) ?
+            ___m.zero :
+            ___m.unit(v));
         };
-        return mBind(null,function (a) {
-          return mBind((a * 2),function (b) {
+        return ___m.bind(null,function (a) {
+          return ___m.bind((a * 2),function (b) {
             return (function () {
-              return ____mResult((a + b));
+              return ___u((a + b));
             })();
           });
         });
       })({
-        mBind: function (mv,mf) {
+        bind: function (mv,mf) {
           return ((mv === null) ?
             null :
             mf(mv));
         },
-        mResult: function (v) {
+        unit: function (v) {
           return v;
         },
-        mZero: null
+        zero: null
       }))) ?
       ("Passed - " + "maybe Monad null Test") :
       ("Failed - " + "maybe Monad null Test")),
-    ((true === (54 === ((function (___monad) {
-        let mBind = ___monad.mBind,
-          mResult = ___monad.mResult,
-          mZero = ___monad.mZero,
-          mPlus = ___monad.mPlus;
-        let ____mResult = function (___arg) {
-          return (((typeof(___arg) === "undefined") && (!(typeof(mZero) === "undefined"))) ?
-            mZero :
-            mResult(___arg));
+    ((true === (54 === ((function (___m) {
+        let ___u = function (v) {
+          return (((typeof(v) === "undefined") && (typeof(___m.zero) !== "undefined")) ?
+            ___m.zero :
+            ___m.unit(v));
         };
-        return mBind([1,2,3],function (a) {
-          return mBind([3,4,5],function (b) {
+        return ___m.bind([1,2,3],function (a) {
+          return ___m.bind([3,4,5],function (b) {
             return (function () {
-              return ____mResult((a + b));
+              return ___u((a + b));
             })();
           });
         });
       })({
-        mBind: function (mv,mf) {
+        bind: function (mv,mf) {
           return ((mv).map(mf)).reduce(function (accum,val) {
             return accum.concat(val);
           },[]);
         },
-        mResult: function (v) {
+        unit: function (v) {
           return [v];
         },
-        mZero: [],
-        mPlus: function () {
+        zero: [],
+        plus: function () {
           return (Array.prototype.slice.call(arguments)).reduce(function (accum,val) {
             return accum.concat(val);
           },[]);
@@ -381,20 +365,16 @@ let lispyscript = function () {
       },0))) ?
       ("Passed - " + "arrayMonad test") :
       ("Failed - " + "arrayMonad test")),
-    ((true === (32 === ((function (___monad) {
-        let mBind = ___monad.mBind,
-          mResult = ___monad.mResult,
-          mZero = ___monad.mZero,
-          mPlus = ___monad.mPlus;
-        let ____mResult = function (___arg) {
-          return (((typeof(___arg) === "undefined") && (!(typeof(mZero) === "undefined"))) ?
-            mZero :
-            mResult(___arg));
+    ((true === (32 === ((function (___m) {
+        let ___u = function (v) {
+          return (((typeof(v) === "undefined") && (typeof(___m.zero) !== "undefined")) ?
+            ___m.zero :
+            ___m.unit(v));
         };
-        return mBind([1,2,3],function (a) {
-          return mBind([3,4,5],function (b) {
+        return ___m.bind([1,2,3],function (a) {
+          return ___m.bind([3,4,5],function (b) {
             return (function () {
-              return ____mResult((((a + b) <= 6) ?
+              return ___u((((a + b) <= 6) ?
                 (function () {
                   return (a + b);
                 })() :
@@ -403,16 +383,16 @@ let lispyscript = function () {
           });
         });
       })({
-        mBind: function (mv,mf) {
+        bind: function (mv,mf) {
           return ((mv).map(mf)).reduce(function (accum,val) {
             return accum.concat(val);
           },[]);
         },
-        mResult: function (v) {
+        unit: function (v) {
           return [v];
         },
-        mZero: [],
-        mPlus: function () {
+        zero: [],
+        plus: function () {
           return (Array.prototype.slice.call(arguments)).reduce(function (accum,val) {
             return accum.concat(val);
           },[]);
@@ -422,19 +402,15 @@ let lispyscript = function () {
       },0))) ?
       ("Passed - " + "arrayMonad when test") :
       ("Failed - " + "arrayMonad when test")),
-    ((true === (6 === ((function (___monad) {
-        let mBind = ___monad.mBind,
-          mResult = ___monad.mResult,
-          mZero = ___monad.mZero,
-          mPlus = ___monad.mPlus;
-        let ____mResult = function (___arg) {
-          return (((typeof(___arg) === "undefined") && (!(typeof(mZero) === "undefined"))) ?
-            mZero :
-            mResult(___arg));
+    ((true === (6 === ((function (___m) {
+        let ___u = function (v) {
+          return (((typeof(v) === "undefined") && (typeof(___m.zero) !== "undefined")) ?
+            ___m.zero :
+            ___m.unit(v));
         };
-        return mBind([1,2,0,null,3],function (a) {
+        return ___m.bind([1,2,0,null,3],function (a) {
           return (function () {
-            return ____mResult((a ?
+            return ___u((a ?
               (function () {
                 return a;
               })() :
@@ -442,16 +418,16 @@ let lispyscript = function () {
           })();
         });
       })({
-        mBind: function (mv,mf) {
+        bind: function (mv,mf) {
           return ((mv).map(mf)).reduce(function (accum,val) {
             return accum.concat(val);
           },[]);
         },
-        mResult: function (v) {
+        unit: function (v) {
           return [v];
         },
-        mZero: [],
-        mPlus: function () {
+        zero: [],
+        plus: function () {
           return (Array.prototype.slice.call(arguments)).reduce(function (accum,val) {
             return accum.concat(val);
           },[]);
