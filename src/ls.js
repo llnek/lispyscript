@@ -28,7 +28,7 @@ var REGEX = {
   macroOp: /^#if\b|^#<<|^#slice@\d+\b|^#head\b|^#tail\b/,
   macroGet: /^#slice@(\d+)/,
   noret: /^def\b|^var\b|^set!\b|^throw\b/,
-  id: /^[a-zA-Z_$][0-9a-zA-Z_$]*$/,
+  id: /^[a-zA-Z_$][\?!\*0-9a-zA-Z_$]*$/,
   fn: /^function\b/,
   wspace: /\s/
 };
@@ -70,10 +70,40 @@ if (!String.prototype.repeat) {
 
 //////////////////////////////////////////////////////////////////////////////
 //
-function normalizeFuncName(name) {
+function normalizeToken(name) {
   return name.replace(/\?/g, "_QUERY").
               replace(/!/g, "_BANG").
               replace(/\*/g, "_STAR");
+}
+
+//////////////////////////////////////////////////////////////////////////////
+//
+function normalizeId(obj) {
+  if (isNode(obj) &&
+      obj.children.length === 1 &&
+      isStr(obj.children[0])) {
+    obj.children[0]=normalizeToken(obj.children[0]);
+  }
+}
+
+//////////////////////////////////////////////////////////////////////////////
+//
+function normalizeNode(node) {
+  if (isNode(node)) {
+    for (var i=0; i < node.children.length; ++i) {
+      normalizeId(node.children[i]);
+    }
+  }
+}
+
+//////////////////////////////////////////////////////////////////////////////
+//
+function normalizeForm(f) {
+  if (isarray(f)) {
+    for (var i=0; i < f.length; ++i) {
+      normalizeNode(f[i]);
+    }
+  }
 }
 
 //////////////////////////////////////////////////////////////////////////////
@@ -453,15 +483,8 @@ function evalForm(form) {
 
   if (REGEX.fn.test(fName)) {
     fName = snodeChunk(["(", fName, ")"]);
-  }
-  else if (isNode(fName)) {
-    for (var i=0; i < fName.children.length; ++i) {
-      s= fName.children[i];
-      if (isStr(s)) {
-        s=normalizeFuncName(s);
-        fName.children[i]=s;
-      }
-    }
+  } else {
+    normalizeId(fName);
   }
 
   return snodeChunk([fName, "(",
@@ -719,6 +742,7 @@ function sf_var(form, cmd) {
       ret.add(",\n" + pad(indent));
     }
     if (!REGEX.id.test(form[i])) { synError("e9", form); }
+    normalizeId(form[i]);
     ret.add([form[i], " = ", form[i + 1]]);
   }
   ret.prepend(" ");
@@ -776,7 +800,7 @@ function sf_anonFunc(arr) {
     synError("e0", arr);
   }
 
-  let fArgs = arr[1],
+  let fArgs = normalizeNode(arr[1]),
       fBody = arr.slice(2),
       ret = snodeChunk(fArgs);
   ret.join(",");
@@ -794,13 +818,12 @@ function sf_func(arr) {
   let ret, fName, fArgs, fBody;
 
   if (!isform(arr[1]) && isform(arr[2])) {
-    fName = arr[1].name;
-    fArgs = arr[2];
+    fArgs = normalizeNode(arr[2]);
+    fName = normalizeId(arr[1]);
     fBody = arr.slice(3);
   }
   else { synError("e0", arr); }
 
-  fName=normalizeFuncName(fName);
   ret = snodeChunk(fArgs);
   ret.join(",");
   ret.prepend("function " + fName + "(");
@@ -848,6 +871,7 @@ function sf_if(arr) {
 function sf_get(arr) {
   assertArgs(arr, 3, "e0");
   evalSexp(arr);
+  normalizeForm(arr);
   return snodeChunk([arr[1], "[", arr[2], "]"]);
 }
 

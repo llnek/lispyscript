@@ -2,9 +2,9 @@
      path (require "path")
      ls (require "../lib/ls"))
 
-;; Register `.ls` file extension so that `ls`
+;; Register `.lisp` file extension so that `lisp`
 ;; modules can be simply required.
-(set! require.extensions[".ls"]
+(set! require.extensions[".lisp"]
   (fn (module filename)
     (var code (fs.readFileSync filename "utf8"))
     (module._compile (ls.transpile code (path.relative (process.cwd) filename)) filename)))
