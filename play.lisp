@@ -22,7 +22,10 @@
 ;(when-some (poo (* 2 3)) (poo 4) (xxxxyz 4) (+ 2 3))
 ;(range 1 10 2)
 
-(var poo (xxx? (+ 2 3)))
+(defn pset! (a? b) (str a? "78787"))
+(var yy? (dfd* 33) 
+     poo (xxx? (+ (if yy? 2 4) 3)))
+(do (pset! yy? "444"))
 
 
 

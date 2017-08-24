@@ -14,7 +14,7 @@
   (require 'node-getopt')
   (.create [['h', 'help', 'display this help'],
     ['v', 'version', 'show version'],
-    ['r', 'run', 'run .ls files directly'],
+    ['r', 'run', 'run .lisp files directly'],
     ['w', 'watch', 'watch and compile changed files beneath current directory'],
     ['b', 'browser-bundle', 'create browser-bundle.js in the same directory'],
     ['m', 'map', 'generate source map files'],
@@ -77,14 +77,14 @@
               ((.pipe (fs.createReadStream bundle))
               (fs.createWriteStream "browser-bundle.js")))
       (true? opt.options['run'])
-          ;; run specified .ls file (directly with no explicit .js file)
+          ;; run specified .lisp file (directly with no explicit .js file)
           (do->nil
             (var infile
               (if opt.argv[0]
-                ;; we require .ls extension (our require extension depends on it!)
-                (if (and (= (opt.argv[0].indexOf '.ls') -1)
+                ;; we require .lisp extension (our require extension depends on it!)
+                (if (and (= (opt.argv[0].indexOf '.lisp') -1)
                          (= (opt.argv[0].indexOf '.js') -1))
-                  (error (new Error "Error: Input file must have extension '.ls' or '.js'"))
+                  (error (new Error "Error: Input file must have extension '.lisp' or '.js'"))
                   opt.argv[0])
                 (error (new Error "Error: No Input file given"))))
             ;; by running the file via require we ensure that any other
@@ -93,10 +93,10 @@
       (true? opt.options['watch'])
           (do->nil
             (var cwd (process.cwd))
-            (console.log 'Watching' cwd 'for .ls file changes...')
+            (console.log 'Watching' cwd 'for .lisp file changes...')
             (watch.watchTree cwd
               (object
-                filter (fn (f stat) (or (stat.isDirectory) (not= (f.indexOf '.ls') -1)))
+                filter (fn (f stat) (or (stat.isDirectory) (not= (f.indexOf '.lisp') -1)))
                 ignoreDotFiles true
                 ignoreDirectoryPattern /node_modules/ )
               (fn (f curr prev)
@@ -124,9 +124,9 @@
   outfile
     (do-with (outfile opt.argv[1])
       (unless outfile
-        (set! outfile (infile.replace /\.ls$/ ".js"))
+        (set! outfile (infile.replace /\.lisp$/ ".js"))
         (if (= outfile infile)
-          (error (new Error "Error: Input file must have extension '.ls'"))))))
+          (error (new Error "Error: Input file must have extension '.lisp'"))))))
 
   ;; compile infile to outfile.
   (try
