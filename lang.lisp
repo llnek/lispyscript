@@ -14,7 +14,43 @@
 (require "./require")
 
 
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;
+(defn- sf_object (arr)
+  (var ret (tnode)
+       p (pad gIndent)
+       epilog  (str "\n" p "}"))
 
+  (when (= 1 (.-length arr))
+    (.add ret "{}")
+    ret)
+
+  (try
+    (set! gIndent (+ gIndent gIndentSize))
+    (evalSexp arr)
+    (set! p (pad gIndent))
+    (.add ret (str "{\n" p))
+    (range 1 (.-length arr) 2)
+    (floop ((i 1 j (* 3 4))
+            (or (< i (.-length arr))
+                (< j (.-length arr)))
+            (i (+ i 2) j (* 2 3)))
+      (if (> i 1)
+        (.add ret (str ",\n" p)))
+      (.add ret (vec (aget arr i) ": " (aget arr (+ i 1)))))
+    (.add ret epilog)
+    ret
+    (finally
+      (set! gIndent (- gIndent  gIndentSize)))))
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;
+(defn- includeFile ()
+  (var icache (vec))
+  (fn (fname)
+    (if (not= -1 (.indexOf icache fname)) (return ""))
+    (.push icache fname)
+    (evalAST (toAST (fs.readFileSync fname) fname))))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;
@@ -42,7 +78,7 @@
     (synError :e11 arr))
 
   (try
-    (includeFile fname)
+    ((includeFile) fname)
     (finally
       (set! gIndent (+ gIndent gIndentSize)))))
 
