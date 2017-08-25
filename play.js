@@ -9,3 +9,4 @@ let yy_QUERY = dfd_STAR(33),
 (function () {
   return pset_BANG(yy_QUERY,"444");
 })();
+$("#xyz").required().alphanum().min(3).max(30).with("email");

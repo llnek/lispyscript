@@ -27,6 +27,8 @@
 
 (defmacro array? (obj)
   (= (whatis? ~obj) "[object Array]"))
+(defmacro vector? (obj)
+  (= (whatis? ~obj) "[object Array]"))
 
 (defmacro object? (obj)
   (= (whatis? ~obj) "[object Object]"))
@@ -77,18 +79,23 @@
     ret) ~i ~j ~obj))
 
 ;; method chaining macro
-(defmacro -> (func form &args)
+(defmacro XXX (func form &args)
   (#if &args
     (-> (((#<< form) ~func) ~@form) ~&args)
     (((#<< form) ~func) ~@form)))
 
+(defmacro -> (func form &args)
+  (#if &args
+    (-> ((#<< form) ~func ~@form) ~&args)
+    ((#<< form) ~func ~@form)))
+
 ;;;;;;;;;;;;;;;;;;;;;; Iteration and Looping ;;;;;;;;;;;;;;;;;;;;
 
 (defmacro each (arr &args)
-  ((.forEach ~arr) ~&args))
+  (.forEach ~arr ~&args))
 
 (defmacro reduce (arr &args)
-  ((.reduce ~arr) ~&args))
+  (.reduce ~arr ~&args))
 
 (defmacro eachKey (obj func &args)
   ((fn (o f s)
@@ -105,7 +112,7 @@
           (~func ___val ___j ___i ___ia ___oa))))))
 
 (defmacro map (arr &args)
-  ((.map ~arr) ~&args))
+  (.map ~arr ~&args))
 
 (defmacro filter (&args)
   (Array.prototype.filter.call ~&args))
@@ -267,7 +274,6 @@
 ;;clojure-like
 
 (defmacro defmonad (name obj) (def ~name (# ~obj)))
-
 (defmacro and (&args) (&& ~&args))
 (defmacro or (&args) (|| ~&args))
 (defmacro not (&args) (! ~&args))
@@ -307,7 +313,7 @@
   (cond &args)
   (if (! ~cond) ~&args))
 
-(defmacro try! (&args) (try ~&args (# )))
+(defmacro try! (&args) (try ~&args (catch e undefined)))
 
 (defmacro let* (bindings expr)
   (do-monad m-identity ~bindings ~expr))
@@ -367,6 +373,10 @@
 (defmacro empty? (x)
   (do (var _x ~x)
       (if (some? _x) (zero? (count* _x)) true)))
+
+(defmacro concat (a b) (.concat ~a ~b))
+
+(defmacro conj (c a) (.concat ~c (array ~a)))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;EOF

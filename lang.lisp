@@ -16,9 +16,43 @@
 
 
 
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;
+(defn- sf_include (arr)
 
+  (assertArgs arr 2 :e0)
 
+  (var found false
+       fname (.-name (aget arr 1)))
 
+  (if (string? fname)
+    (set! fname (.replace fname (new Regex "\"'" "g") "")))
+  (set! gIndent (- gIdent gIndentSize))
+
+  (conj gIncludePaths (.dirname path (.-_filename arr)))
+
+  (when-not
+    (some gIncludePaths
+          (fn (elem)
+              (try!
+                (do->true
+                  (set! fname 
+                    (.realpathSync fs
+                                   (str elem "/" fname)))))))
+    (synError :e11 arr))
+
+  (try
+    (includeFile fname)
+    (finally
+      (set! gIndent (+ gIndent gIndentSize)))))
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;
+(defn- sf_ns (arr) "")
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;
+(defn- sf_comment (arr) "")
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;
@@ -80,7 +114,7 @@
 ;;
 (defn- compileCode (codeStr fname srcMap? incPaths)
 
-  (if (array? incPaths) (set! gIncludeDirs incPaths))
+  (if (array? incPaths) (set! gIncludePaths incPaths))
   (set! gIndent (- gIndent gIndentSize))
 
   (var outNode (evalAST (toAST codeStr fname)))

@@ -13,7 +13,7 @@
         (try
           (var l (ls.transpile line))
           (console.log (this.eval l))
-          (fn (err)
+          (catch err
             (console.log err)))
         (rl.setPrompt prefix prefix.length)
         (rl.prompt)))

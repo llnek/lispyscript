@@ -51,12 +51,12 @@
       (input.on "data"
         (fn (chunck)
           (set! source (+ source (chunck.toString)))))
-      ;; Once input ends try to compile & write to output.
+      ;; Once input ends ,compile & write to output.
       (input.on "end"
         (#
           (try
             (output.write (ls.transpile source process.cwd))
-            error)))
+            (catch e (error e)))))
       (input.on "error" error)
       (output.on "error" error)
       (setTimeout
@@ -145,7 +145,7 @@
           (ls.transpileWithSrcMap content infile dirs)
           (ls.transpile content infile dirs))
         "utf8"))
-    (fn (err) (error err) nil)))
+    (catch e (error e) nil)))
 ;; end of maybe Monad bindings
 
 

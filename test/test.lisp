@@ -120,10 +120,10 @@
 (assert (= "112233" (template-repeat-key {"1":1,"2":2,"3":3} key value)) "template repeat key test")
 (assert
   (= 10
-    (try (var i 10) i (fn (err)))) "try catch test - try block")
+    (try (var i 10) i (catch err err))) "try catch test - try block")
 (assert
   (= 10
-    (try (throw 10) (fn (err) err))) "try catch test - catch block")
+    (try (throw 10) (catch err err))) "try catch test - catch block")
 (assert
   (= 3
     (do-monad m-identity (a 1 b (* a 2)) (+ a b))) "Identity Monad Test")
