@@ -239,7 +239,8 @@ let lispyscript = function () {
       } catch (err) {
 (function () {
         return err;
-      })()      }
+      })();
+      }
       })())) ?
       ["Passed - ","try catch test - try block"].join('') :
       ["Failed - ","try catch test - try block"].join('')),
@@ -250,7 +251,8 @@ let lispyscript = function () {
       } catch (err) {
 (function () {
         return err;
-      })()      }
+      })();
+      }
       })())) ?
       ["Passed - ","try catch test - catch block"].join('') :
       ["Failed - ","try catch test - catch block"].join('')),

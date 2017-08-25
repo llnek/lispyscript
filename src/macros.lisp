@@ -135,9 +135,7 @@
       (recur ~@bind-vals))))
 
 
-(defmacro for (&args)
-  (do-monad m-array ~&args))
-
+;(defmacro for (&args) (do-monad m-array ~&args))
 
 ;;;;;;;;;;;;;;;;;;;; Templates ;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
