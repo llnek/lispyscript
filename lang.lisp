@@ -13,6 +13,106 @@
 
 (require "./require")
 
+
+
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;
+(defn- evalMacro (mc cmd tree)
+
+  (var args (get mc "args")
+       code (get mc "code")
+       vargs false
+       tpos 0
+       i 0
+       frags (object))
+
+  (for ((i 0) (< i (alen args)) (i (+ i 1)))
+    ;; skip the cmd at 0
+    (set! tpos (+ i 1))
+    (if (= (.-name (nth args i)) VARGS)
+      (do
+        (set! frags TILDA_VARGS (.slice tree tpos))
+        (set! vargs true))
+      (set! frags
+            (str TILDA (.-name (nth args i)))
+            (if (>= tpos (.alen tree))
+              (tnodeChunk "undefined") (nth tree tpos)))))
+
+  (if (and (not vargs)
+           (< (+ i 1) (alen tree)))
+    (synError :e16 tree cmd))
+
+  ;; handle homoiconic expressions in macro
+  (var expand
+       (fn (source)
+         (var ret (vec) ename "" a nil hack nil)
+         (set! ret "_filename" (.-_filename tree))
+         (set! ret "_line" (.-line tree))
+         (if (isNode? (1st source))
+           (set! ename (.-name (1st source))))
+         (when (REGEX.macroOp.test ename)
+           (var s1name (.-name (2nd source))
+                g nil
+                frag (get frags (str TILDA s1name)))
+           (when (= ename "#<<")
+             (if-not (isarray? frag) (synError :e13 tree cmd))
+             (set! a (.shift frag))
+             (if (isUndef? a) (synError :e12 tree cmd))
+             (set! hack (vec a)))
+           (when (= ename "#head")
+             (if-not (isarray? frag) (synError :e13 tree cmd))
+             (set! hack (vec (1st frag))))
+           (when (= ename "#tail")
+             (if-not (isarray? frag) (synError :e13 tree cmd))
+             (set! hack  (vec (last frag))))
+           (when (.startsWith ename "#slice@")
+             (if-not (isarray? frag) (synError :e13 tree cmd))
+             (set! g (REGEX.macroGet.exec ename))
+             (assert (and g (= 2 (alen g)) (> (2nd g) 0))
+                     (str "Invalid macro slice: " ename))
+             (set! a (1st (.splice frag (- (2nd g) 1) 1)))
+             (if (isUndef? a) (synError :e12 tree cmd))
+             (set! hack (vec a)))
+           (when (= ename "#if")
+             (if-not (isarray? frag) (synError :e13 tree cmd))
+             (if (> (alen frag) 0)
+               (set! hack (vec (expand (nth source 2))))
+               (if (nth source 3)
+                 (set! hack (vec (expand (nth source 3))))
+                 (set! hack (vec undefined))))))
+         (for ((i 0)
+               (and (nil? hack)
+                    (< i (alen source)))
+               (i (+ i 1)))
+           (if (isarray? (nth source i))
+             (do
+               (set! a (expand (nth source i)))
+               (if a (.push ret a)))
+             (let (token (nth source i)
+                   bak token
+                   isATSign false)
+               (when (>= (.indexOf (.-name token) "@") 0)
+                 (set! isATSign true)
+                 (set! bak (tnode (.-line token)
+                                  (.-column token)
+                                  (.-source token)
+                                  (.replace (.-name token) "@" "")
+                                  (.replace (.-name token) "@" ""))))
+               (if (get frags (.-name bak))
+                 (do
+                   (set! a (get frags (.-name bak)))
+                   (if (or isATSign
+                           (= (.-name bak) TILDA_VARGS))
+                     (for ((j 0) (< j (alen a)) (j (+ j 1)))
+                       (.push ret (nth a j)))
+                     (.push ret repl)))
+                 (.push ret token)))))
+         (if (array? hack)
+           (1st hack)
+           ret)))
+  (expand code))
+
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;
 (defn- sf_compOp (list)
@@ -31,11 +131,10 @@
     (.add ret (tnodeChunk (vec (nth list i)
                                " " op " "
                                (nth list (+ i 1))))))
-
-  (.join ret " && ")
-  (.prepend ret "(")
-  (.add ret ")")
-  ret)
+  (doto ret
+    (.join " && ")
+    (.prepend "(")
+    (.add ")")))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;
@@ -78,6 +177,53 @@
   (.prepend ret "[")
   (.add ret "]")
   ret)
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;
+(defn- sf_do (list)
+
+  (var end (eindex list)
+       last (nth list end)
+       p (pad gIndent)
+       ret (tnode)
+       e nil)
+
+  (for ((i 1) (< i end) (i (+ i 1)))
+    (set! e (nth list i))
+    (.add ret (vec p (evalForm e) ";\n")))
+
+  (set! e (if (isform? last) (evalForm last) last))
+  (doto ret
+    (.add (vec p "return " e ";\n"))
+    (.prepend (str p "(function() {\n"))
+    (.add (str p "})()"))))
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;
+(defn- sf_doto (list)
+
+  (if (< (alen list) 2)
+    (synError :e0 list))
+
+  (var ret (tnode)
+       p (pad gIndent)
+       p2 (pad (+ gIndent gIndentSize))
+       p3 (pad (+ gIndent (* 2 gIndentSize)))
+       e nil
+       e1 (1st list))
+
+  (set! e1 (if (isform? e1) (evalForm e1) e1))
+  (.add ret (vec p2 "let ___x = " e1 ";\n"))
+
+  (for ((i  2) (< i (alen list)) (i (+ i 1)))
+    (set! e (nth list i))
+    (.splice e 1 0  "___x")
+    (.add ret (vec p3 (evalForm e) ";\n")))
+
+  (doto ret
+    (.add (vec p2 "return ___x;\n"))
+    (.prepend (str p "(function() {\n"))
+    (.add (str p "})()"))))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;
