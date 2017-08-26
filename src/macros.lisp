@@ -78,11 +78,17 @@
     (js# "for(var n=0;n<i;n++){let inn=[];for(var m=0;m<j;m++) inn.push(o); ret.push(inn);}")
     ret) ~i ~j ~obj))
 
-;; method chaining macro
-(defmacro XXX (func form &args)
-  (#if &args
-    (-> (((#<< form) ~func) ~@form) ~&args)
-    (((#<< form) ~func) ~@form)))
+(defmacro loopy (target form &args)
+  (#splat
+    ((#<< form) ~target ~@form)
+    (#if &args
+     (loopy ~target (#<< &args) ~&args))))
+
+(defmacro doto (expr &args)
+  (let (___x ~expr)
+    (#if &args
+      (loopy ___x (#<< &args) ~&args))
+    ___x))
 
 (defmacro -> (func form &args)
   (#if &args
@@ -278,6 +284,17 @@
 (defmacro not= (&args) (!= ~&args))
 (defmacro mod (&args) (% ~&args))
 (defmacro nil? (&args) (null? ~&args))
+(defmacro eq? (&args) (== ~&args))
+(defmacro alen (arr) (.-length ~arr))
+(defmacro eindex (arr) (- (.-length ~arr) 1))
+
+(defmacro last (arr) (let (a ~arr)
+                       (aget a (- (alen a) 1))))
+(defmacro nth (arr pos) (aget ~arr ~pos))
+(defmacro first (arr) (aget ~arr 0))
+(defmacro 1st (arr) (aget ~arr 0))
+(defmacro second (arr) (aget ~arr 1))
+(defmacro 2nd (arr) (aget ~arr 1))
 
 (defmacro bit-and (&args) (& ~&args))
 (defmacro bit-or (&args) (| ~&args))

@@ -21,12 +21,18 @@
 ;(cond (> 2 0) "aaa" (< 5 4) "bbb" (> 6 7) "ccc" :else "sfsf")
 ;(when-some (poo (* 2 3)) (poo 4) (xxxxyz 4) (+ 2 3))
 ;(range 1 10 2)
-
+(comment
 (defn pset! (a? b) (str a? "78787"))
 (var yy? (dfd* 33)
      poo (xxx? (+ (if yy? 2 4) 3)))
-(do (pset! yy? "444"))
+(do (pset! yy? "444")))
 
-(-> ($ "#xyz")
-    (.required) (.alphanum) (.min 3) (.max 30) (.with "email"))
+;(-> ($ "#xyz") (.required) (.alphanum) (.min 3) (.max 30) (.with "email"))
+(doto ($ "#xyz") 
+      (.alphanum) 
+      (.required) 
+      (.min 3) 
+      (.max 30) 
+      (.with "email"))
+
 
