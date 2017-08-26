@@ -59,7 +59,7 @@
 
 (defmacro when (cond &args) (if ~cond (do ~&args)))
 
-(defmacro do (&args) ((# ~&args)))
+;(defmacro do (&args) ((# ~&args)))
 
 (defmacro cond (&args)
   (if (#<< &args)
@@ -77,18 +77,6 @@
     (var ret [])
     (js# "for(var n=0;n<i;n++){let inn=[];for(var m=0;m<j;m++) inn.push(o); ret.push(inn);}")
     ret) ~i ~j ~obj))
-
-(defmacro loopy (target form &args)
-  (#splat
-    ((#<< form) ~target ~@form)
-    (#if &args
-     (loopy ~target (#<< &args) ~&args))))
-
-(defmacro doto (expr &args)
-  (let (___x ~expr)
-    (#if &args
-      (loopy ___x (#<< &args) ~&args))
-    ___x))
 
 (defmacro -> (func form &args)
   (#if &args
@@ -135,8 +123,7 @@
       (set! recur
             (# (set! ___xs arguments)
                (when (def? ___ret)
-                 (js# "for (___ret=undefined; ___ret===undefined; ")
-                 (js# "     ___ret=___f.apply(this,___xs));")
+                 (js# "for (___ret=undefined; ___ret===undefined; ___ret=___f.apply(this,___xs));")
                  ___ret)))
       (recur ~@bind-vals))))
 

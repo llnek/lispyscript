@@ -83,66 +83,66 @@ let lispyscript = function () {
       ["Passed - ","variadic logical operator"].join('') :
       ["Failed - ","variadic logical operator"].join('')),
     ((true === (10 === (true ?
-        (function () {
-          let ret = 10;
-          return ret;
+                (function() {
+        let ret = 10;
+        return ret;
         })() :
         undefined))) ?
       ["Passed - ","when test"].join('') :
       ["Failed - ","when test"].join('')),
     ((true === (10 === ((!false) ?
-        (function () {
-          let ret = 10;
-          return ret;
+                (function() {
+        let ret = 10;
+        return ret;
         })() :
         undefined))) ?
       ["Passed - ","unless test"].join('') :
       ["Failed - ","unless test"].join('')),
-    ((true === (-10 === (function () {
-        let i = -1;
-        return ((i < 0) ?
-          -10 :
-          ((0 === i) ?
-            0 :
-            ((i > 0) ?
-              10 :
-              undefined)));
+    ((true === (-10 ===       (function() {
+      let i = -1;
+      return ((i < 0) ?
+        -10 :
+        ((0 === i) ?
+          0 :
+          ((i > 0) ?
+            10 :
+            undefined)));
       })())) ?
       ["Passed - ","condition test less than"].join('') :
       ["Failed - ","condition test less than"].join('')),
-    ((true === (10 === (function () {
-        let i = 1;
-        return ((i < 0) ?
-          -10 :
-          ((0 === i) ?
-            0 :
-            ((i > 0) ?
-              10 :
-              undefined)));
+    ((true === (10 ===       (function() {
+      let i = 1;
+      return ((i < 0) ?
+        -10 :
+        ((0 === i) ?
+          0 :
+          ((i > 0) ?
+            10 :
+            undefined)));
       })())) ?
       ["Passed - ","condition test greater than"].join('') :
       ["Failed - ","condition test greater than"].join('')),
-    ((true === (0 === (function () {
-        let i = 0;
-        return ((i < 0) ?
-          -10 :
-          ((0 === i) ?
-            0 :
-            ((i > 0) ?
-              10 :
-              undefined)));
+    ((true === (0 ===       (function() {
+      let i = 0;
+      return ((i < 0) ?
+        -10 :
+        ((0 === i) ?
+          0 :
+          ((i > 0) ?
+            10 :
+            undefined)));
       })())) ?
       ["Passed - ","condition test equal to"].join('') :
       ["Failed - ","condition test equal to"].join('')),
-    ((true === (10 === (function () {
-        let i = Infinity;
-        return ((i < 0) ?
-          -10 :
-          ((0 === i) ?
-            0 :
-            (true ?
-              10 :
-              undefined)));
+    ((true === (10 ===       (function() {
+      let i = Infinity;
+      return ((i < 0) ?
+        -10 :
+        ((0 === i) ?
+          0 :
+          (true ?
+            10 :
+            undefined)));
       })())) ?
       ["Passed - ","condition test default"].join('') :
       ["Failed - ","condition test default"].join('')),
@@ -158,42 +158,41 @@ let lispyscript = function () {
         recur = function () {
           ___xs = arguments;
           return ((!(typeof(___ret) === "undefined")) ?
-            (function () {
-              for (___ret=undefined; ___ret===undefined; 
-                   ___ret=___f.apply(this,___xs));
-              return ___ret;
+                        (function() {
+            for (___ret=undefined; ___ret===undefined; ___ret=___f.apply(this,___xs));;
+            return ___ret;
             })() :
-            undefined);
+            undefined)
         };
         return recur(1);
       })())) ?
       ["Passed - ","loop recur test"].join('') :
       ["Failed - ","loop recur test"].join('')),
-    ((true === (10 === (function () {
-        let ret = 0;
-        [
-          1,
-          2,
-          3,
-          4
-        ].forEach(function (val) {
-          return ret = (ret + val);
-        });
-        return ret;
+    ((true === (10 ===       (function() {
+      let ret = 0;
+      [
+        1,
+        2,
+        3,
+        4
+      ].forEach(function (val) {
+        return ret = (ret + val);
+      });
+      return ret;
       })())) ?
       ["Passed - ","each test"].join('') :
       ["Failed - ","each test"].join('')),
-    ((true === (10 === (function () {
-        let ret = 0;
-        (function (o,f,s) {
-          let _k = Object.keys(o);
-          return _k.forEach(function (elem) {
-            return f.call(s,o[elem],elem,o);
-          });
-        })({a: 1, b: 2, c: 3, d: 4},function (val) {
-          return ret = (ret + val);
+    ((true === (10 ===       (function() {
+      let ret = 0;
+      (function (o,f,s) {
+        let _k = Object.keys(o);
+        return _k.forEach(function (elem) {
+          return f.call(s,o[elem],elem,o);
         });
-        return ret;
+      })({a: 1, b: 2, c: 3, d: 4},function (val) {
+        return ret = (ret + val);
+      });
+      return ret;
       })())) ?
       ["Passed - ","eachKey test"].join('') :
       ["Failed - ","eachKey test"].join('')),
@@ -217,17 +216,17 @@ let lispyscript = function () {
     ((true === ("112233" === testTemplate(1,2,3))) ?
       ["Passed - ","template test"].join('') :
       ["Failed - ","template test"].join('')),
-    ((true === ("112233" === (function () {
-        let ___ret = "";
-        (function (o,f,s) {
-          let _k = Object.keys(o);
-          return _k.forEach(function (elem) {
-            return f.call(s,o[elem],elem,o);
-          });
-        })({"1":1,"2":2,"3":3},function (value,key) {
-          return ___ret = (___ret + [key,value].join(''));
+    ((true === ("112233" ===       (function() {
+      let ___ret = "";
+      (function (o,f,s) {
+        let _k = Object.keys(o);
+        return _k.forEach(function (elem) {
+          return f.call(s,o[elem],elem,o);
         });
-        return ___ret;
+      })({"1":1,"2":2,"3":3},function (value,key) {
+        return ___ret = (___ret + [key,value].join(''));
+      });
+      return ___ret;
       })())) ?
       ["Passed - ","template repeat key test"].join('') :
       ["Failed - ","template repeat key test"].join('')),
@@ -237,8 +236,8 @@ let lispyscript = function () {
         return i;
 
       } catch (err) {
-(function () {
-        return err;
+      (function() {
+      return err;
       })();
       }
       })())) ?
@@ -249,8 +248,8 @@ let lispyscript = function () {
         throw 10;;
 
       } catch (err) {
-(function () {
-        return err;
+      (function() {
+      return err;
       })();
       }
       })())) ?
@@ -374,8 +373,8 @@ let lispyscript = function () {
           return ___m.bind([3,4,5],function (b) {
             return (function () {
               return ___u((((a + b) <= 6) ?
-                (function () {
-                  return (a + b);
+                                (function() {
+                return (a + b);
                 })() :
                 undefined));
             })();
@@ -410,8 +409,8 @@ let lispyscript = function () {
         return ___m.bind([1,2,0,null,3],function (a) {
           return (function () {
             return ___u((a ?
-              (function () {
-                return a;
+                            (function() {
+              return a;
               })() :
               undefined));
           })();
