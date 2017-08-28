@@ -13,8 +13,167 @@
 
 (require "./require")
 
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;
+(defn- conj!! (list obj)
+  (if obj (.push list obj)) list)
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;
+(defn- onMacro (form mc)
+  (var m  (evalMacro mc form))
+  (if (list? m) (evalForm m) m))
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;
+(defn- evalForm (form)
+
+  (var cmd (.-name (1st form))
+      mc (get MACROS-MAP cmd))
+
+  (cond
+    (some? mc)
+    (onMacro form mc)
+
+    (and (string? cmd)
+         (.startsWith cmd ".-"))
+    (let (ret (tnode) f2 (2nd form))
+      (.add ret (if (list? f2)
+                  (evalForm f2) f2))
+      (.prepend ret "(")
+      (.add ret (vec ")[\"" (.slice cmd 2) "\"]"))
+      ret)
+
+    (and (string? cmd)
+         (= (.charAt cmd 0) "."))
+    (let (ret (tnode) f2 (2nd form))
+      (.add ret (if (list? f2)
+                  (evalForm f2) f2))
+      (.add ret (vec (1st form) "("))
+      (for ((i 2) (< i (alen form)) (i (+ i 1)))
+        (if (not= i 2) (.add ret ","))
+        (.add ret (if (list? (nth form i))
+                    (evalForm (nth form i) (nth form i)))))
+      (.add ret ")")
+      ret)
+
+    :else
+    (let (f (if (string? cmd)
+              (get SPECIAL-FORMS cmd)))
+      (if f
+        (f form)
+        (do
+          (evalSexp form)
+          (let (f1 (1st form))
+            (if-not f1 (handleError 1 (.-line form)))
+            (if (REGEX.fn.test f1)
+              (set! f1 (tnodeChunk (vec "(" f1 ")"))))
+            (tnodeChunk
+              (vec f1
+                   "("
+                   (.join (tnodeChunk
+                            (.slice form 1)) ",") ")"))))))))
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;
+(defn- evalSexp (sexp)
+  (each sexp
+        (fn (part i list)
+            (if (list? part) (set! list i (evalForm part))))))
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;
+(defn- evalMacroOp (source tree cmd frags ename)
+  (var s1 (nth source 1)
+       s1name (-.name s1)
+       a nil
+       g nil
+       frag (get frags (str TILDA s1name)))
+
+  (cond
+    (= ename "#<<")
+    (do
+      (if-not (list? frag)
+        (synError :e13 tree cmd))
+      (set! a (.shift frag))
+      (if (undef? a)
+          (synError :e12 tree cmd))
+      a)
+
+    (= ename "#head")
+    (if-not (list? frag)
+      (synError :e13 tree cmd)
+      (1st frag))
+
+    (= ename "#tail")
+    (if-not (list? frag)
+      (synError :e13 tree cmd)
+      (last frag))
+
+    (.startsWith ename "#slice@")
+    (do
+      (if-not (list? frag)
+        (synError :e13 tree cmd))
+      (set! g (REGEX.macroGet.exec ename))
+      (assert (and g (= 2 (alen g)) (> (2nd g) 0))
+              (str "Invalid macro slice: " ename))
+      (set! a (1st (.splice frag (- (2nd g) 1) 1)))
+      (if (undef? a)
+        (synError :e12 tree cmd))
+      a)
+
+    (= ename "#if")
+    (do
+      (if-not (list? frag)
+        (synError :e13 tree cmd))
+      (if (not-empty frag)
+        (expand (nth source 2))
+        (if (nth source 3)
+          (expand (nth source 3))
+          undefined)))))
 
 
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;
+(defn- expandMacro (source)
+
+  (var ret (vec)
+       len (alen source)
+       ename (.-name (1st source)))
+
+  (doto ret
+    (set! "_filename" (.-_filename tree))
+    (set! "_line" (.-line tree)))
+
+  (if (REGEX.macroOp.test ename)
+    (evalMacroOp source tree cmd frags ename)
+    (loop (i) (0)
+      (if-not (< i len)
+        ret
+        (let (si (nth source i) c nil)
+          (if (list? si)
+            (conj!! ret (expand si))
+            (let (token si
+                  repl nil
+                  bak token
+                  atSign? false)
+              (when (.includes (.-name token) "@")
+                (set! atSign? true)
+                (set! bak (tnode (.-line token)
+                                 (.-column token)
+                                 (.-source token)
+                                 (.replace (.-name token) "@" "")
+                                 (.replace (.-name token) "@" ""))))
+              (if (get frags (.-name bak))
+                (do
+                  (set! repl (get frags (.-name bak)))
+                  (if (or atSign?
+                          (= (.-name bak) TILDA_VARGS))
+                    (for ((j 0) (< j (alen repl)) (j (+ j 1)))
+                      (conj!! ret (nth repl j)))
+                    (conj!! ret repl)))
+                (conj!! ret token))))
+          (recur (+ i 1)))))))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;
@@ -43,75 +202,7 @@
            (< (+ i 1) (alen tree)))
     (synError :e16 tree cmd))
 
-  ;; handle homoiconic expressions in macro
-  (var expand
-       (fn (source)
-         (var ret (vec) ename "" a nil hack nil)
-         (set! ret "_filename" (.-_filename tree))
-         (set! ret "_line" (.-line tree))
-         (if (isNode? (1st source))
-           (set! ename (.-name (1st source))))
-         (when (REGEX.macroOp.test ename)
-           (var s1name (.-name (2nd source))
-                g nil
-                frag (get frags (str TILDA s1name)))
-           (when (= ename "#<<")
-             (if-not (isarray? frag) (synError :e13 tree cmd))
-             (set! a (.shift frag))
-             (if (isUndef? a) (synError :e12 tree cmd))
-             (set! hack (vec a)))
-           (when (= ename "#head")
-             (if-not (isarray? frag) (synError :e13 tree cmd))
-             (set! hack (vec (1st frag))))
-           (when (= ename "#tail")
-             (if-not (isarray? frag) (synError :e13 tree cmd))
-             (set! hack  (vec (last frag))))
-           (when (.startsWith ename "#slice@")
-             (if-not (isarray? frag) (synError :e13 tree cmd))
-             (set! g (REGEX.macroGet.exec ename))
-             (assert (and g (= 2 (alen g)) (> (2nd g) 0))
-                     (str "Invalid macro slice: " ename))
-             (set! a (1st (.splice frag (- (2nd g) 1) 1)))
-             (if (isUndef? a) (synError :e12 tree cmd))
-             (set! hack (vec a)))
-           (when (= ename "#if")
-             (if-not (isarray? frag) (synError :e13 tree cmd))
-             (if (> (alen frag) 0)
-               (set! hack (vec (expand (nth source 2))))
-               (if (nth source 3)
-                 (set! hack (vec (expand (nth source 3))))
-                 (set! hack (vec undefined))))))
-         (for ((i 0)
-               (and (nil? hack)
-                    (< i (alen source)))
-               (i (+ i 1)))
-           (if (isarray? (nth source i))
-             (do
-               (set! a (expand (nth source i)))
-               (if a (.push ret a)))
-             (let (token (nth source i)
-                   bak token
-                   isATSign false)
-               (when (>= (.indexOf (.-name token) "@") 0)
-                 (set! isATSign true)
-                 (set! bak (tnode (.-line token)
-                                  (.-column token)
-                                  (.-source token)
-                                  (.replace (.-name token) "@" "")
-                                  (.replace (.-name token) "@" ""))))
-               (if (get frags (.-name bak))
-                 (do
-                   (set! a (get frags (.-name bak)))
-                   (if (or isATSign
-                           (= (.-name bak) TILDA_VARGS))
-                     (for ((j 0) (< j (alen a)) (j (+ j 1)))
-                       (.push ret (nth a j)))
-                     (.push ret repl)))
-                 (.push ret token)))))
-         (if (array? hack)
-           (1st hack)
-           ret)))
-  (expand code))
+  (expandMacro code))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;

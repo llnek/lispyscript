@@ -29,6 +29,8 @@
   (= (whatis? ~obj) "[object Array]"))
 (defmacro vector? (obj)
   (= (whatis? ~obj) "[object Array]"))
+(defmacro list? (obj)
+  (= (whatis? ~obj) "[object Array]"))
 
 (defmacro object? (obj)
   (= (whatis? ~obj) "[object Object]"))
@@ -283,6 +285,8 @@
 (defmacro second (arr) (aget ~arr 1))
 (defmacro 2nd (arr) (aget ~arr 1))
 
+
+
 (defmacro bit-and (&args) (& ~&args))
 (defmacro bit-or (&args) (| ~&args))
 (defmacro bit-xor (&args) (^ ~&args))
@@ -375,6 +379,8 @@
 (defmacro empty? (x)
   (do (var _x ~x)
       (if (some? _x) (zero? (count* _x)) true)))
+
+(defmacro not-empty (x) (if (empty? ~x) nil ~x))
 
 (defmacro concat (a b) (.concat ~a ~b))
 
