@@ -6,6 +6,53 @@ function conj_BANG_BANG(list,obj) {
     undefined);
   return list;
 }
+function evalAST(astTree) {
+  let ret = tnode(),
+    pstr = "",
+    len = (astTree)["length"];
+  gIndent += gIndentSize;
+  pstr = pad(gIndent);
+  astTree.forEach(function (expr,i,tree) {
+    return     (function() {
+    let name = "",
+      tmp = null,
+      r = "";
+    ((Object.prototype.toString.call(expr) === "[object Array]") ?
+            (function() {
+      (node_QUERY(expr[0]) ?
+        name = (expr[0])["name"] :
+        undefined);
+      tmp = evalForm(expr);
+      return ((name === "include") ?
+                (function() {
+        ret.add(tmp);
+        return tmp = null;
+        })() :
+        undefined);
+      })() :
+      tmp = expr);
+    (((i === (len - 1)) && gIndent && (!REGEX.noret.test(name))) ?
+            (function() {
+      return r = "return ";
+      })() :
+      undefined);
+    (tmp ?
+            (function() {
+      return ret.add([
+        [pstr,r].join(''),
+        tmp,
+        (gNoSemiColon ?
+          "\n" :
+          ";\n")
+      ]);
+      })() :
+      undefined);
+    return gNoSemiColon = false;
+    })();
+  });
+  gIndent -= gIndentSize;
+  return ret;
+}
 function onMacro(form,mc) {
   let m = evalMacro(mc,form);
   return ((Object.prototype.toString.call(m) === "[object Array]") ?
@@ -485,6 +532,25 @@ function sf_throw(arr) {
   ret.prepend("throw ");
   ret.add(";");
   return ret;
+}
+function sf_x_opop(form,op) {
+  assertArgs(form,2,"e0");
+  return tnodeChunk([
+    op,
+    ((Object.prototype.toString.call(form[1]) === "[object Array]") ?
+      evalForm(form[1]) :
+      form[1])
+  ]);
+}
+function sf_x_eq(form,op) {
+  assertArgs(form,3,"e0");
+  return tnodeChunk([
+    form[1],
+    [" ",op,"= "].join(''),
+    ((Object.prototype.toString.call(form[2]) === "[object Array]") ?
+      evalForm(form[2]) :
+      form[2])
+  ]);
 }
 function sf_set(arr) {
   ((((arr)["length"] < 3) || ((arr)["length"] > 4)) ?

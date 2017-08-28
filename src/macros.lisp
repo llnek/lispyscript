@@ -55,6 +55,12 @@
 (defmacro zero? (obj)
   (= 0 ~obj))
 
+(defmacro -= (x y) (minus! ~x ~y))
+(defmacro += (x y) (add! ~x ~y))
+
+(defmacro -- (x) (minus!! ~x))
+(defmacro ++ (x) (add!! ~x))
+
 ;;;;;;;;;;;;;;;;;;;;;;; Expressions ;;;;;;;;;;;;;;;;;;;;
 
 (defmacro unless (cond &args) (when (! ~cond) ~&args))

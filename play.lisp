@@ -29,12 +29,20 @@
   (+ 2 3)
   (pset! yy? "444"))
 
+(comment
 (-> ($ "#xyz") (.required) (.alphanum) (.min 3) (.max 30) (.with "email"))
 (doto ($ "#xyz") 
       (.required) 
       (.alphanum) 
       (.min 3) 
       (.max 30) 
-      (.with "email"))
+      (.with "email")))
+
+(while (< xyz (poo 34 6565))
+  (var yy? (dfd* 33)
+       poo (xxx? (+ (if yy? 2 4) 3)))
+  (+ 2 3)
+  (pset! yy? "444"))
+
 
 

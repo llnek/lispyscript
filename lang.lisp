@@ -20,6 +20,282 @@
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;
+(defn- addToken (tree token filename lineno tknCol)
+  (when token
+    (if (= ":else" token) (set! token "true"))
+    (if (= "nil" token) (set! token "null"))
+    (if (and (.startsWith token ":")
+             (REGEX.id.test (.substring token 1)))
+      (set! token (str "\"" (.substring token 1) "\"")))
+    (conj!! tree
+            (tnode lineno,
+                   (- tknCol 1)
+                   filename token token)))
+  "")
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;
+(defn- parseError (c tree) (synError c tree))
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;
+(defn- lexer (tlen)
+  (var tree [] token = "" c nil
+       esc? false str? false qstr? false
+       regex? false comment? false endList? false)
+
+  (set! tree "_filename" filename)
+  (set! tree "_line" lineno)
+
+  (while (< pos tlen)
+    (set! c  (.charAt codeStr pos))
+    (++ colno)
+    (++ pos)
+    (when (= c "\n")
+      (++ lineno)
+      (set! colno 1)
+      (if comment?
+        (set! comment? false)))
+    (if comment? { continue; }
+      if (isEsc) {
+        isEsc= false; token += c; continue; }
+      // strings
+      if (c === '"') {
+        isStr = !isStr; token += c; continue; }
+      if (isStr) {
+        if (c === "\n") {
+          token += "\\n"; }
+        else {
+          if (c === "\\") { isEsc= true; }
+          token += c;
+        }
+        continue;
+      }
+      if (c === "'") {
+        isSQStr = !isSQStr;
+        token += c; continue; }
+      if (isSQStr) {
+        token += c; continue; }
+      // data types
+      if (c === "[") {
+        ++jsArray;
+        token += c; continue; }
+      if (c === "]") {
+        if (jsArray === 0) {
+          parseError("e4", tree); }
+        --jsArray;
+        token += c; continue; }
+      if (jsArray > 0) {
+        token += c; continue; }
+      if (c === "{") {
+        ++jsObject;
+        token += c; continue; }
+      if (c === "}") {
+        if (jsObject === 0) {
+          parseError("e6", tree); }
+        --jsObject;
+        token += c; continue; }
+      if (jsObject > 0) {
+        token += c; continue; }
+      if (c === ";") {
+        isComment = true; continue; }
+      // regex
+      // regex in function position with first char " " is a prob. Use \s instead.
+      if (c === "/"&&
+          !(tree.length === 0 &&
+            token.length === 0 &&
+            REGEX.wspace.test(codeStr.charAt(pos)))) {
+        isRegex = !isRegex;
+        token += c; continue; }
+      if (isRegex) {
+        if (c === "\\") {
+          isEsc= true; }
+        token += c; continue; }
+      if (c === "(") {
+        token=addToken(tree,token); // catch e.g. "blah("
+        tknCol = colno;
+        tree.push(lexer());
+        continue;
+      }
+      if (c === ")") {
+        isEndForm = true;
+        token=addToken(tree,token);
+        tknCol = colno;
+        break;
+      }
+      if (REGEX.wspace.test(c)) {
+        if (c === "\n") { --lineno; }
+        token=addToken(tree,token);
+        if (c === "\n") { ++lineno; }
+        tknCol = colno;
+        continue;
+      }
+      token += c;
+    }
+    if (isStr || isSQStr) { parseError("e3", tree);}
+    if (isRegex) { parseError("e14", tree); }
+    if (jsArray > 0) { parseError("e5", tree); }
+    if (jsObject > 0) { parseError("e7", tree); }
+    if (!isEndForm) { parseError("e8", tree); }
+    return tree;
+  },
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;
+(defn- toAST (codeStr filename)
+  (set! codeStr (str "(" codeStr ")"))
+  (var length (alen codeStr)
+       pos  1
+       lineno  1
+       colno  1
+       tknCol 1)
+  ;;(defn- addToken (tree token filename lineno tknCol)
+  let lexer = function() {
+    let tree = [],
+        token = "",
+        c,
+        jsArray = 0,
+        jsObject = 0,
+        isEsc= false,
+        isStr = false,
+        isSQStr = false,
+        isRegex = false,
+        isComment = false,
+        isEndForm = false;
+    tree._filename = filename;
+    tree._line = lineno;
+    while (pos < length) {
+      c = codeStr.charAt(pos);
+      ++colno;
+      ++pos;
+      if (c === "\n") {
+        ++lineno;
+        colno = 1;
+        if (isComment) {
+          isComment = false; }
+      }
+      if (isComment) { continue; }
+      if (isEsc) {
+        isEsc= false; token += c; continue; }
+      // strings
+      if (c === '"') {
+        isStr = !isStr; token += c; continue; }
+      if (isStr) {
+        if (c === "\n") {
+          token += "\\n"; }
+        else {
+          if (c === "\\") { isEsc= true; }
+          token += c;
+        }
+        continue;
+      }
+      if (c === "'") {
+        isSQStr = !isSQStr;
+        token += c; continue; }
+      if (isSQStr) {
+        token += c; continue; }
+      // data types
+      if (c === "[") {
+        ++jsArray;
+        token += c; continue; }
+      if (c === "]") {
+        if (jsArray === 0) {
+          parseError("e4", tree); }
+        --jsArray;
+        token += c; continue; }
+      if (jsArray > 0) {
+        token += c; continue; }
+      if (c === "{") {
+        ++jsObject;
+        token += c; continue; }
+      if (c === "}") {
+        if (jsObject === 0) {
+          parseError("e6", tree); }
+        --jsObject;
+        token += c; continue; }
+      if (jsObject > 0) {
+        token += c; continue; }
+      if (c === ";") {
+        isComment = true; continue; }
+      // regex
+      // regex in function position with first char " " is a prob. Use \s instead.
+      if (c === "/"&&
+          !(tree.length === 0 &&
+            token.length === 0 &&
+            REGEX.wspace.test(codeStr.charAt(pos)))) {
+        isRegex = !isRegex;
+        token += c; continue; }
+      if (isRegex) {
+        if (c === "\\") {
+          isEsc= true; }
+        token += c; continue; }
+      if (c === "(") {
+        token=addToken(tree,token); // catch e.g. "blah("
+        tknCol = colno;
+        tree.push(lexer());
+        continue;
+      }
+      if (c === ")") {
+        isEndForm = true;
+        token=addToken(tree,token);
+        tknCol = colno;
+        break;
+      }
+      if (REGEX.wspace.test(c)) {
+        if (c === "\n") { --lineno; }
+        token=addToken(tree,token);
+        if (c === "\n") { ++lineno; }
+        tknCol = colno;
+        continue;
+      }
+      token += c;
+    }
+    if (isStr || isSQStr) { parseError("e3", tree);}
+    if (isRegex) { parseError("e14", tree); }
+    if (jsArray > 0) { parseError("e5", tree); }
+    if (jsObject > 0) { parseError("e7", tree); }
+    if (!isEndForm) { parseError("e8", tree); }
+    return tree;
+  },
+  ret = lexer();
+  return (pos < length) ? handleError("e10") : ret;
+}
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;
+(defn- evalAST (astTree)
+  (var ret (tnode)
+       pstr ""
+       len (alen astTree))
+
+  (+= gIndent gIndentSize)
+  (set! pstr (pad gIndent))
+
+  (each astTree
+        (fn (expr i tree)
+          (let (name "" tmp nil r "")
+            (if (list? expr)
+              (do
+                (if (node? (1st expr))
+                  (set! name (.-name (1st expr))))
+                (set! tmp (evalForm expr))
+                (when (= name "include")
+                  (.add ret tmp)
+                  (set! tmp nil)))
+              (set! tmp expr))
+            (when (and (= i (- len 1))
+                       gIndent
+                       (not (REGEX.noret.test name)))
+              (set! r "return "))
+            (when tmp
+              (.add ret
+                    (vec (str pstr r)
+                         tmp
+                         (if gNoSemiColon "\n" ";\n"))))
+            (set! gNoSemiColon false))))
+  (-= gIndent gIndentSize)
+  ret)
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;
 (defn- onMacro (form mc)
   (var m  (evalMacro mc form))
   (if (list? m) (evalForm m) m))
@@ -388,6 +664,36 @@
   (.prepend ret "throw ")
   (.add ret ";")
   ret)
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;
+(defn- sf_while (form)
+  (var f1 (2nd form))
+  (.splice form 0 2 (tnodeChunk "do" "do"))
+  (tnodeChunk
+    (vec "while "
+         (if (list? f1) (evalForm f1) f1)
+         " {\n"
+         (evalForm form) ";\n}\n")))
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;
+(defn- sf_x_opop (form op)
+  (assertArgs form 2 :e0)
+  (tnodeChunk
+    (vec op
+         (if (list? (2nd form))
+           (evalForm (2nd form)) (2nd form)))))
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;
+(defn- sf_x_eq (form op)
+  (assertArgs form 3 :e0)
+  (tnodeChunk
+    (vec (2nd form)
+         (str " " op "= ")
+         (if (list? (nth form 2))
+           (evalForm (nth form 2)) (nth form 2)))))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;
