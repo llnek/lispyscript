@@ -9,7 +9,7 @@
   (#
     (var rl (readline.createInterface process.stdin process.stdout))
     (rl.on 'line'
-      (fn (line)
+      (fn [line]
         (try
           (var l (ls.transpile line))
           (console.log (this.eval l))

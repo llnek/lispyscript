@@ -6,20 +6,20 @@
      watch (require "watch")
      isValidFlag /-h\b|-r\b|-v\b|-b\b|-s\b|-t\b/
      error
-       (fn (err)
+       (fn [err]
          (console.error err.message)
          (process.exit 1)))
 
 (var opt (->
   (require 'node-getopt')
-  (.create [['h', 'help', 'display this help'],
-    ['v', 'version', 'show version'],
-    ['r', 'run', 'run .lisp files directly'],
-    ['w', 'watch', 'watch and compile changed files beneath current directory'],
-    ['b', 'browser-bundle', 'create browser-bundle.js in the same directory'],
-    ['m', 'map', 'generate source map files'],
-    ['t', 'tree', 'show AST tree'],
-    ['i', 'include-dir=ARG+', 'add directory to include search path']])
+  (.create [['h' 'help' 'display this help']
+    ['v' 'version' 'show version']
+    ['r' 'run' 'run .lisp files directly']
+    ['w' 'watch' 'watch and compile changed files beneath current directory']
+    ['b' 'browser-bundle' 'create browser-bundle.js in the same directory']
+    ['m' 'map' 'generate source map files']
+    ['t' 'tree' 'show AST tree']
+    ['i' 'include-dir=ARG+' 'add directory to include search path']])
   (.setHelp (+ "lispy [OPTION] [<infile>] [<outfile>]\n\n"
                "<outfile> will default to <infile> with '.js' extension\n\n"
               "Also compile stdin to stdout\n"
@@ -69,60 +69,60 @@
 
   compile
     (cond
-      (true? opt.options['version']) (do->nil (console.log (+ "Version " ls.version)))
-      (true? opt.options['browser-bundle'])
+      (true? (get opt.options 'version')) (do->nil (console.log (+ "Version " ls.version)))
+      (true? (get opt.options 'browser-bundle'))
           (do->nil
             (var bundle
               (require.resolve "lispyscript/lib/browser-bundle.js"))
               ((.pipe (fs.createReadStream bundle))
               (fs.createWriteStream "browser-bundle.js")))
-      (true? opt.options['run'])
+      (true? (get opt.options 'run'))
           ;; run specified .lisp file (directly with no explicit .js file)
           (do->nil
             (var infile
-              (if opt.argv[0]
+              (if (1st opt.argv)
                 ;; we require .lisp extension (our require extension depends on it!)
-                (if (and (= (opt.argv[0].indexOf '.lisp') -1)
-                         (= (opt.argv[0].indexOf '.js') -1))
+                (if (and (= (.indexOf (1st opt.argv) '.lisp') -1)
+                         (= (.indexOf (1st opt.argv) '.js') -1))
                   (error (new Error "Error: Input file must have extension '.lisp' or '.js'"))
-                  opt.argv[0])
+                  (1st opt.argv))
                 (error (new Error "Error: No Input file given"))))
             ;; by running the file via require we ensure that any other
             ;; requires within infile work (and process paths correctly)
             (require infile))
-      (true? opt.options['watch'])
+      (true? (get opt.options 'watch'))
           (do->nil
             (var cwd (process.cwd))
             (console.log 'Watching' cwd 'for .lisp file changes...')
             (watch.watchTree cwd
               (object
-                filter (fn (f stat) (or (stat.isDirectory) (not= (f.indexOf '.lisp') -1)))
+                filter (fn [f stat] (or (stat.isDirectory) (not= (f.indexOf '.lisp') -1)))
                 ignoreDotFiles true
                 ignoreDirectoryPattern /node_modules/ )
-              (fn (f curr prev)
+              (fn [f curr prev]
                 (cond
                   (and curr (not= curr.nlink 0))
                     (->
                       (require "child_process")
-                      (.spawn "lispy" [f.substring(cwd.length+1)] {stdio: "inherit"}))
+                      (.spawn "lispy" [f.substring(cwd.length+1)] {stdio "inherit"}))
                   (and (object? f) (nil? prev) (nil? curr))
                     (eachKey f
-                      (fn (stat initialf)
+                      (fn [stat initialf]
                         (unless (= initialf cwd)
                           (->
                             (require "child_process")
-                            (.spawn "lispy" [initialf.substring(cwd.length+1)] {stdio: "inherit"})))))))))
+                            (.spawn "lispy" [initialf.substring(cwd.length+1)] {stdio "inherit"})))))))))
       :else true) ;; no other options - go ahead and compile
 
   ;; if infile undefined
   infile
-    (if opt.argv[0]
-      opt.argv[0]
+    (if (1st opt.argv)
+      (1st opt.argv)
       (error (new Error "Error: No Input file given")))
 
   ;; set outfile args.shift. ! outfile set outfile to infile(.js)
   outfile
-    (do-with (outfile opt.argv[1])
+    (do-with (outfile (2nd opt.argv))
       (unless outfile
         (set! outfile (infile.replace /\.lisp$/ ".js"))
         (if (= outfile infile)
@@ -130,9 +130,9 @@
 
   ;; compile infile to outfile.
   (try
-    (var wantMap (true? opt.options["map"]))
-    (var dbgAST (true? opt.options["tree"]))
-    (var dirs opt.options["include-dir"])
+    (var wantMap (true? (get opt.options "map")))
+    (var dbgAST (true? (get opt.options "tree")))
+    (var dirs (get opt.options "include-dir"))
     (if-not dbgAST
       (console.log
         (str "lispy v" ls.version ":  compiling: " infile " -> " outfile)))

@@ -46,20 +46,17 @@
 
 (defmacro def? (obj) (not (undef? ~obj)))
 
-(defmacro true? (obj)
-  (= true ~obj))
+(defmacro true? (obj) (= true ~obj))
 
-(defmacro false? (obj)
-  (= false ~obj))
+(defmacro false? (obj) (= false ~obj))
 
-(defmacro zero? (obj)
-  (= 0 ~obj))
+(defmacro zero? (obj) (= 0 ~obj))
 
-(defmacro -= (x y) (minus! ~x ~y))
-(defmacro += (x y) (add! ~x ~y))
+(defmacro -= (x y) (dec! ~x ~y))
+(defmacro += (x y) (inc! ~x ~y))
 
-(defmacro -- (x) (minus!! ~x))
-(defmacro ++ (x) (add!! ~x))
+(defmacro -- (x) (dec!! ~x))
+(defmacro ++ (x) (inc!! ~x))
 
 ;;;;;;;;;;;;;;;;;;;;;;; Expressions ;;;;;;;;;;;;;;;;;;;;
 
@@ -75,15 +72,15 @@
     (#if &args (cond ~&args))))
 
 (defmacro arrayInit (len obj)
-  ((fn (l o)
+  ((fn [z o]
     (var ret [])
-    (js# "for(var i=0;i<l;i++) ret.push(o);")
+    (js# "for(var i=0;i<z;++i) { ret.push(o); }")
     ret) ~len ~obj))
 
 (defmacro arrayInit2d (i j obj)
-  ((fn (i j o)
+  ((fn [i j o]
     (var ret [])
-    (js# "for(var n=0;n<i;n++){let inn=[];for(var m=0;m<j;m++) inn.push(o); ret.push(inn);}")
+    (js# "for(var n=0;n<i;++n){let inn=[];for(var m=0;m<j;++m) {inn.push(o);} ret.push(inn);}")
     ret) ~i ~j ~obj))
 
 (defmacro -> (func form &args)
@@ -100,17 +97,17 @@
   (.reduce ~arr ~&args))
 
 (defmacro eachKey (obj func &args)
-  ((fn (o f s)
+  ((fn [o f s]
     (var _k (Object.keys o))
     (each _k
-      (fn (elem)
+      (fn [elem]
         (f.call s (get o elem) elem o)))) ~obj ~func ~&args))
 
 (defmacro each2d (arr func)
   (each ~arr
-    (fn (___elem ___i ___oa)
+    (fn [___elem ___i ___oa]
       (each ___elem
-        (fn (___val ___j ___ia)
+        (fn [___val ___j ___ia]
           (~func ___val ___j ___i ___ia ___oa))))))
 
 (defmacro map (arr &args)
@@ -127,7 +124,7 @@
 
 (defmacro loop (bind-args bind-vals &args)
   ((# (var recur nil ___xs nil
-           ___f (fn ~bind-args ~&args) ___ret ___f)
+           ___f (fn [ ~@bind-args ] ~&args) ___ret ___f)
       (set! recur
             (# (set! ___xs arguments)
                (when (def? ___ret)
@@ -140,21 +137,21 @@
 
 ;;;;;;;;;;;;;;;;;;;; Templates ;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-(defmacro template (name args &args)
+(defmacro template (name pms &args)
   (def ~name
-    (fn ~args
+    (fn [ ~@pms ]
       (str ~&args))))
 
 (defmacro template-repeat (arg &args)
   (reduce ~arg
-    (fn (___memo elem index)
+    (fn [___memo elem index]
       (+ ___memo (str ~&args))) ""))
 
 (defmacro template-repeat-key (obj &args)
   (do
     (var ___ret "")
     (eachKey ~obj
-      (fn (value key)
+      (fn [value key]
         (set! ___ret (+ ___ret (str ~&args)))))
     ___ret))
 
@@ -163,7 +160,7 @@
 
 (defmacro sequence (name args init &args)
   (var ~name
-    (fn ~args
+    (fn [ ~@args ]
       ((# ~@init
           (var next nil)
           (var ___curr 0)
@@ -181,16 +178,16 @@
     (str "Failed - " ~message)))
 
 (defmacro testGroup (name &args)
-  (var ~name (# (array ~&args))))
+  (var ~name (# (vec ~&args))))
 
 (defmacro testRunner (groupname desc)
-  ((fn (groupname desc)
+  ((fn [groupname desc]
     (var start (new Date)
          tests (groupname)
          passed 0
          failed 0)
     (each tests
-      (fn (elem)
+      (fn [elem]
         (if (elem.match /^Passed/)
           ++passed
           ++failed)))
@@ -207,49 +204,49 @@
 
 (defmacro m-identity ()
   (object
-    bind (fn (mv mf) (mf mv))
-    unit (fn (v) v)))
+    bind (fn [mv mf] (mf mv))
+    unit (fn [v] v)))
 
 (defmacro m-maybe ()
   (object
-    bind (fn (mv mf) (if (null? mv) null (mf mv)))
-    unit (fn (v) v)
-    zero null))
+    bind (fn [mv mf] (if (nil? mv) nil (mf mv)))
+    unit (fn [v] v)
+    zero nil))
 
 (defmacro m-array ()
   (object
-    bind (fn (mv mf)
+    bind (fn [mv mf]
               (reduce
                 (map mv mf)
-                (fn (accum val) (accum.concat val))
+                (fn [accum val] (accum.concat val))
                 []))
-    unit (fn (v) [v])
+    unit (fn [v] [v])
     zero []
     plus (#
           (reduce
             (Array.prototype.slice.call arguments)
-            (fn (accum val) (accum.concat val))
+            (fn [accum val] (accum.concat val))
             []))))
 
 (defmacro m-state ()
   (object
-    bind (fn (mv f)
-              (fn (s)
+    bind (fn [mv f]
+              (fn [s]
                 (var l (mv s)
                      v (get l 0)
                      ss (get l 1))
                 ((f v) ss)))
-    unit (fn (v) (fn (s) [v, s]))))
+    unit (fn [v] (fn [s] [v, s]))))
 
 (defmacro m-continuation ()
   (object
-    bind (fn (mv mf)
-              (fn (c)
+    bind (fn [mv mf]
+              (fn [c]
                 (mv
-                  (fn (v)
+                  (fn [v]
                     ((mf v) c)))))
-    unit (fn (v)
-                (fn (c)
+    unit (fn [v]
+                (fn [c]
                   (c v)))))
 
 (defmacro m-bind (binder bindings expr)
@@ -260,9 +257,9 @@
         ((# ~expr))))))
 
 (defmacro do-monad (monad bindings expr)
-  ((fn (___m)
+  ((fn [___m]
     (var ___u
-         (fn (v)
+         (fn [v]
            (if (and (undef? v)
                     (def? ___m.zero))
              ___m.zero
@@ -303,7 +300,7 @@
 
 (defmacro #
   (&args)
-  (fn () ~&args))
+  (fn [] ~&args))
 
 (defmacro pos?
   (arg)
@@ -390,7 +387,7 @@
 
 (defmacro concat (a b) (.concat ~a ~b))
 
-(defmacro conj (c a) (.concat ~c (array ~a)))
+(defmacro conj (c a) (.concat ~c (vec ~a)))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;EOF

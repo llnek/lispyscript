@@ -189,24 +189,44 @@ let lispyscript = function () {
         return _k.forEach(function (elem) {
           return f.call(s,o[elem],elem,o);
         });
-      })({a: 1, b: 2, c: 3, d: 4},function (val) {
+      })({
+        a: 1,
+        b: 2,
+        c: 3,
+        d: 4
+      },function (val) {
         return ret = (ret + val);
       });
       return ret;
       })())) ?
       ["Passed - ","eachKey test"].join('') :
       ["Failed - ","eachKey test"].join('')),
-    ((true === (10 === [1, 2, 3, 4].reduce(function (accum,val) {
+    ((true === (10 === [
+        1,
+        2,
+        3,
+        4
+      ].reduce(function (accum,val) {
         return (accum + val);
       },0))) ?
       ["Passed - ","reduce test with init"].join('') :
       ["Failed - ","reduce test with init"].join('')),
-    ((true === (10 === [1, 2, 3, 4].reduce(function (accum,val) {
+    ((true === (10 === [
+        1,
+        2,
+        3,
+        4
+      ].reduce(function (accum,val) {
         return (accum + val);
       }))) ?
       ["Passed - ","reduce test without init"].join('') :
       ["Failed - ","reduce test without init"].join('')),
-    ((true === (20 === [1, 2, 3, 4].map(function (val) {
+    ((true === (20 === [
+        1,
+        2,
+        3,
+        4
+      ].map(function (val) {
         return (val * 2);
       }).reduce(function (accum,val) {
         return (accum + val);
@@ -223,7 +243,11 @@ let lispyscript = function () {
         return _k.forEach(function (elem) {
           return f.call(s,o[elem],elem,o);
         });
-      })({"1":1,"2":2,"3":3},function (value,key) {
+      })({
+        "1": 1,
+        "2": 2,
+        "3": 3
+      },function (value,key) {
         return ___ret = (___ret + [key,value].join(''));
       });
       return ___ret;
@@ -236,7 +260,7 @@ let lispyscript = function () {
         return i;
 
       } catch (err) {
-      (function() {
+return       (function() {
       return err;
       })();
       }
@@ -248,7 +272,7 @@ let lispyscript = function () {
         throw 10;;
 
       } catch (err) {
-      (function() {
+return       (function() {
       return err;
       })();
       }
@@ -336,8 +360,16 @@ let lispyscript = function () {
             ___m.zero :
             ___m.unit(v));
         };
-        return ___m.bind([1,2,3],function (a) {
-          return ___m.bind([3,4,5],function (b) {
+        return ___m.bind([
+          1,
+          2,
+          3
+        ],function (a) {
+          return ___m.bind([
+            3,
+            4,
+            5
+          ],function (b) {
             return (function () {
               return ___u((a + b));
             })();
@@ -350,7 +382,9 @@ let lispyscript = function () {
           },[]);
         },
         unit: function (v) {
-          return [v];
+          return [
+            v
+          ];
         },
         zero: [],
         plus: function () {
@@ -369,8 +403,16 @@ let lispyscript = function () {
             ___m.zero :
             ___m.unit(v));
         };
-        return ___m.bind([1,2,3],function (a) {
-          return ___m.bind([3,4,5],function (b) {
+        return ___m.bind([
+          1,
+          2,
+          3
+        ],function (a) {
+          return ___m.bind([
+            3,
+            4,
+            5
+          ],function (b) {
             return (function () {
               return ___u((((a + b) <= 6) ?
                                 (function() {
@@ -387,7 +429,9 @@ let lispyscript = function () {
           },[]);
         },
         unit: function (v) {
-          return [v];
+          return [
+            v
+          ];
         },
         zero: [],
         plus: function () {
@@ -406,7 +450,13 @@ let lispyscript = function () {
             ___m.zero :
             ___m.unit(v));
         };
-        return ___m.bind([1,2,0,null,3],function (a) {
+        return ___m.bind([
+          1,
+          2,
+          0,
+          null,
+          3
+        ],function (a) {
           return (function () {
             return ___u((a ?
                             (function() {
@@ -422,7 +472,9 @@ let lispyscript = function () {
           },[]);
         },
         unit: function (v) {
-          return [v];
+          return [
+            v
+          ];
         },
         zero: [],
         plus: function () {

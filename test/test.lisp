@@ -3,9 +3,9 @@
   "1" one "2" two "3" three)
 
 ;; A couple named (as opposed to anonymous) functions
-(defn namedFn (x y)
+(defn namedFn [x y]
   (+ x y))
-(defn namedFnNoSpaceBeforeArgs(x y)
+(defn namedFnNoSpaceBeforeArgs[x y]
   (- x y))
 
 ;; Def testgroup name - lispyscript
@@ -90,34 +90,34 @@
     (do
       (var ret 0)
       (each (array 1 2 3 4)
-        (fn (val)
+        (fn [val]
           (set! ret (+ ret val))))
       ret)) "each test")
 (assert
   (= 10
     (do
       (var ret 0)
-      (eachKey {a: 1, b: 2, c: 3, d: 4}
-        (fn (val)
+      (eachKey {a 1 b 2 c 3 d 4}
+        (fn [val]
           (set! ret (+ ret val))))
       ret)) "eachKey test")
 (assert
   (= 10
-    (reduce [1, 2, 3, 4]
-      (fn (accum val)
+    (reduce [1 2 3 4]
+      (fn [accum val]
         (+ accum val)) 0)) "reduce test with init")
 (assert
   (= 10
-    (reduce [1, 2, 3, 4]
-      (fn (accum val)
+    (reduce [1 2 3 4]
+      (fn [accum val]
         (+ accum val)))) "reduce test without init")
 (assert
   (= 20
-    (reduce (map [1, 2, 3, 4] (fn (val) (* val 2)))
-      (fn (accum val)
+    (reduce (map [1 2 3 4] (fn [val] (* val 2)))
+      (fn [accum val]
         (+ accum val)) 0)) "map test")
 (assert (= "112233" (testTemplate 1 2 3)) "template test")
-(assert (= "112233" (template-repeat-key {"1":1,"2":2,"3":3} key value)) "template repeat key test")
+(assert (= "112233" (template-repeat-key {"1" 1 "2" 2 "3" 3} key value)) "template repeat key test")
 (assert
   (= 10
     (try (var i 10) i (catch err err))) "try catch test - try block")
@@ -136,20 +136,20 @@
 (assert
   (= 54
     (reduce
-      (do-monad m-array (a [1,2,3] b [3,4,5]) (+ a b))
-      (fn (accum val) (+ accum val))
+      (do-monad m-array (a [1 2 3] b [3 4 5]) (+ a b))
+      (fn [accum val] (+ accum val))
       0)) "arrayMonad test")
 (assert
   (= 32
     (reduce
-      (do-monad m-array (a [1,2,3] b [3,4,5]) (when (<= (+ a b) 6) (+ a b)))
-      (fn (accum val) (+ accum val))
+      (do-monad m-array (a [1 2 3] b [3 4 5]) (when (<= (+ a b) 6) (+ a b)))
+      (fn [accum val] (+ accum val))
       0)) "arrayMonad when test")
 (assert
   (= 6
     (reduce
-      (do-monad m-array (a [1,2,0,null,3]) (when a a))
-      (fn (accum val) (+ accum val))
+      (do-monad m-array (a [1 2 0 null 3]) (when a a))
+      (fn [accum val] (+ accum val))
       0)) "arrayMonad when null values test")
 (assert
   (= 13
@@ -161,7 +161,7 @@
 
 ;; Function for running on browser. This function is for
 ;; the test.html file in the same folder.
-(defn browserTest ()
+(defn browserTest []
   (var el (document.getElementById "testresult"))
   (if el.outerHTML
     (set! el.outerHTML (str "<pre>" (testRunner lispyscript "LispyScript Testing") "</pre>"))
