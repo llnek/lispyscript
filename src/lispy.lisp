@@ -40,8 +40,8 @@
   ;; halt operations.
   (noargs
     (when (and
-              (zero? opt.argv.length)
-              (zero? (.length (Object.keys opt.options))))
+              (zero? (.-length opt.argv))
+              (zero? (.-length (Object.keys opt.options))))
       (var output process.stdout)
       (var input process.stdin)
       (input.resume)
@@ -69,49 +69,50 @@
 
   compile
     (cond
-      (true? (get opt.options 'version')) (do->nil (console.log (+ "Version " ls.version)))
+      (true? (get opt.options 'version')) 
+      (do->nil (console.log (+ "Version " ls.version)))
+
       (true? (get opt.options 'browser-bundle'))
-          (do->nil
-            (var bundle
-              (require.resolve "lispyscript/lib/browser-bundle.js"))
-              ((.pipe (fs.createReadStream bundle))
-              (fs.createWriteStream "browser-bundle.js")))
+      (do->nil
+        (var bundle
+          (require.resolve "lispyscript/lib/browser-bundle.js"))
+          ((.pipe (fs.createReadStream bundle))
+          (fs.createWriteStream "browser-bundle.js")))
+
       (true? (get opt.options 'run'))
-          ;; run specified .lisp file (directly with no explicit .js file)
-          (do->nil
-            (var infile
-              (if (1st opt.argv)
-                ;; we require .lisp extension (our require extension depends on it!)
-                (if (and (= (.indexOf (1st opt.argv) '.lisp') -1)
-                         (= (.indexOf (1st opt.argv) '.js') -1))
-                  (error (new Error "Error: Input file must have extension '.lisp' or '.js'"))
-                  (1st opt.argv))
-                (error (new Error "Error: No Input file given"))))
-            ;; by running the file via require we ensure that any other
-            ;; requires within infile work (and process paths correctly)
-            (require infile))
+      ;; run specified .lisp file (directly with no explicit .js file)
+      (do->nil
+        (var infile
+          (if (1st opt.argv)
+            ;; we require .lisp extension (our require extension depends on it!)
+            (if (and (= (.indexOf (1st opt.argv) '.lisp') -1)
+                     (= (.indexOf (1st opt.argv) '.js') -1))
+              (error (new Error "Error: Input file must have extension '.lisp' or '.js'"))
+              (1st opt.argv))
+            (error (new Error "Error: No Input file given"))))
+        ;; by running the file via require we ensure that any other
+        ;; requires within infile work (and process paths correctly)
+        (require infile))
       (true? (get opt.options 'watch'))
-          (do->nil
-            (var cwd (process.cwd))
-            (console.log 'Watching' cwd 'for .lisp file changes...')
-            (watch.watchTree cwd
-              (object
-                filter (fn (f stat) (or (stat.isDirectory) (not= (f.indexOf '.lisp') -1)))
-                ignoreDotFiles true
-                ignoreDirectoryPattern /node_modules/ )
-              (fn [f curr prev]
-                (cond
-                  (and curr (not= curr.nlink 0))
-                    (->
-                      (require "child_process")
-                      (.spawn "lispy" [f.substring(cwd.length+1)] {stdio "inherit"}))
-                  (and (object? f) (nil? prev) (nil? curr))
-                    (eachKey f
-                      (fn (stat initialf)
-                        (unless (= initialf cwd)
-                          (->
-                            (require "child_process")
-                            (.spawn "lispy" [initialf.substring(cwd.length+1)] {stdio "inherit"})))))))))
+      (do->nil
+        (var cwd (process.cwd))
+        (console.log 'Watching' cwd 'for .lisp file changes...')
+        (watch.watchTree cwd
+          (object
+            filter (fn (f stat) (or (stat.isDirectory) (not= (f.indexOf '.lisp') -1)))
+            ignoreDotFiles true
+            ignoreDirectoryPattern /node_modules/ )
+          (fn (f curr prev)
+            (cond
+              (and curr (not= curr.nlink 0))
+              (-> (require "child_process")
+                  (.spawn "lispy" [ (.substring f (+ 1 (.-length cwd1))) ] {stdio "inherit"}))
+              (and (object? f) (nil? prev) (nil? curr))
+              (eachKey f
+                       (fn (stat initialf)
+                           (unless (= initialf cwd)
+                             (-> (require "child_process")
+                                 (.spawn "lispy" [ (.substring initialf (+ 1 (.-length cwd)))] {stdio "inherit"})))))))))
       :else true) ;; no other options - go ahead and compile
 
   ;; if infile undefined
