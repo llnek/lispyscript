@@ -81,7 +81,7 @@
         true 10))) "condition test default")
 (assert
   (= 10
-    (loop (i) (1)
+    (loop (i 1)
       (if (= i 10)
         i
         (recur ++i)))) "loop recur test")

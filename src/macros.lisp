@@ -122,15 +122,15 @@
 (defmacro every (&args)
   (Array.prototype.every.call ~&args))
 
-(defmacro loop (bind-args bind-vals &args)
+(defmacro loop (bindings &args)
   ((# (var recur nil ___xs nil
-           ___f (fn ( ~@bind-args ) ~&args) ___ret ___f)
+           ___f (fn (#odds bindings) ~&args) ___ret ___f)
       (set! recur
             (# (set! ___xs arguments)
                (when (def? ___ret)
                  (js# "for (___ret=undefined; ___ret===undefined; ___ret=___f.apply(this,___xs));")
                  ___ret)))
-      (recur ~@bind-vals))))
+      (recur (#evens* bindings)))))
 
 
 ;(defmacro for (&args) (do-monad m-array ~&args))
@@ -341,8 +341,7 @@
 (defmacro do->nil (&args) (do ~&args nil))
 
 (defmacro dotimes (bind-one &args)
-  (loop ((#head bind-one) times)
-        (0 (#tail bind-one))
+  (loop ((#head bind-one) 0 times (#tail bind-one))
     (when (> times (#head bind-one))
       ~&args
       (recur (inc (#head bind-one)) times))))
@@ -353,16 +352,14 @@
 
 (defmacro if-some (bind-one then else)
   (do
-    (var (#head bind-one)
-         (#tail bind-one))
+    (var ~@bind-one)
     (if (some? (#head bind-one))
       ~then
       ~else)))
 
 (defmacro when-some (bind-one &args)
   (do
-    (var (#head bind-one)
-         (#tail bind-one))
+    (var ~@bind-one)
     (when (some? (#head bind-one)) ~&args)))
 
 (defmacro repeat (n expr)
