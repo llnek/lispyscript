@@ -6,7 +6,7 @@
      watch (require "watch")
      isValidFlag /-h\b|-r\b|-v\b|-b\b|-s\b|-t\b/
      error
-       (fn [err]
+       (fn (err)
          (console.error err.message)
          (process.exit 1)))
 
@@ -96,7 +96,7 @@
             (console.log 'Watching' cwd 'for .lisp file changes...')
             (watch.watchTree cwd
               (object
-                filter (fn [f stat] (or (stat.isDirectory) (not= (f.indexOf '.lisp') -1)))
+                filter (fn (f stat) (or (stat.isDirectory) (not= (f.indexOf '.lisp') -1)))
                 ignoreDotFiles true
                 ignoreDirectoryPattern /node_modules/ )
               (fn [f curr prev]
@@ -107,7 +107,7 @@
                       (.spawn "lispy" [f.substring(cwd.length+1)] {stdio "inherit"}))
                   (and (object? f) (nil? prev) (nil? curr))
                     (eachKey f
-                      (fn [stat initialf]
+                      (fn (stat initialf)
                         (unless (= initialf cwd)
                           (->
                             (require "child_process")
