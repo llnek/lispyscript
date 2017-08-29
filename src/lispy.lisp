@@ -98,10 +98,9 @@
         (var cwd (process.cwd))
         (console.log 'Watching' cwd 'for .lisp file changes...')
         (watch.watchTree cwd
-          (object
-            filter (fn (f stat) (or (stat.isDirectory) (not= (f.indexOf '.lisp') -1)))
+          { filter (fn (f stat) (or (stat.isDirectory) (not= (f.indexOf '.lisp') -1)))
             ignoreDotFiles true
-            ignoreDirectoryPattern /node_modules/ )
+            ignoreDirectoryPattern /node_modules/ }
           (fn (f curr prev)
             (cond
               (and curr (not= curr.nlink 0))

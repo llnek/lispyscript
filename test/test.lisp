@@ -89,7 +89,7 @@
   (= 10
     (do
       (var ret 0)
-      (each (array 1 2 3 4)
+      (each [ 1 2 3 4]
         (fn (val)
           (set! ret (+ ret val))))
       ret)) "each test")
