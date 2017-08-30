@@ -203,18 +203,18 @@
 ;;;;;;;;;;;;;;;; Monads ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 (defmacro m-identity ()
-  {
+  (hash-map
     bind (fn (mv mf) (mf mv))
-    unit (fn (v) v) } )
+    unit (fn (v) v) ))
 
 (defmacro m-maybe ()
-  {
+  (hash-map
     bind (fn (mv mf) (if (nil? mv) nil (mf mv)))
     unit (fn (v) v)
-    zero nil})
+    zero nil))
 
 (defmacro m-array ()
-  {
+  (hash-map
     bind (fn (mv mf)
               (reduce
                 (map mv mf)
@@ -226,20 +226,20 @@
           (reduce
             (Array.prototype.slice.call arguments)
             (fn (accum val) (accum.concat val))
-            []))})
+            []))))
 
 (defmacro m-state ()
-  {
+  (hash-map
     bind (fn (mv f)
               (fn (s)
                 (var l (mv s)
                      v (get l 0)
                      ss (get l 1))
                 ((f v) ss)))
-    unit (fn (v) (fn (s) [v, s]))})
+    unit (fn (v) (fn (s) [v, s]))))
 
 (defmacro m-continuation ()
-  {
+  (hash-map
     bind (fn (mv mf)
               (fn (c)
                 (mv
@@ -247,7 +247,7 @@
                     ((mf v) c)))))
     unit (fn (v)
                 (fn (c)
-                  (c v)))})
+                  (c v)))))
 
 (defmacro m-bind (binder bindings expr)
   (~binder (#slice@2 bindings)
