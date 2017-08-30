@@ -9,9 +9,34 @@
 (ns ^{:doc ""
       :author "Kenneth Leung" }
 
-  czlab.lispy.lang)
+  czlab.kirby.lang)
 
 (require "./require")
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;
+(def- TreeNode (.-SourceNode (require "source-map")))
+(def- fs nil path nil)
+
+(def- VERSION "1.0.0"
+      includePaths []
+      noSemi? false
+      indentSize 2
+      VARGS "&args"
+      TILDA "~"
+      TILDA-VARGS (str TILDA VARGS))
+
+(def *indent* -indentSize)
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;
+(def- REGEX
+  { macroGet (new RegExp "^#slice@(\\d+)")
+    noret (new RegExp "^def\\b|^var\\b|^set!\\b|^throw\\b")
+    id (new RegExp "^[a-zA-Z_$][?\\-*!0-9a-zA-Z_$]*$")
+    id2 (new RegExp "^[*$][?\\-*!0-9a-zA-Z_$]+$")
+    func (new RegExp "^function\\b")
+    wspace (new RegExp "\\s") })
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;
@@ -20,141 +45,226 @@
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;
-(defn- addToken (tree token filename lineno tknCol)
-  (when token
-    (if (= ":else" token) (set! token "true"))
-    (if (= "nil" token) (set! token "null"))
-    (if (and (.startsWith token ":")
-             (REGEX.id.test (.substring token 1)))
-      (set! token (str "\"" (.substring token 1) "\"")))
-    (conj!! tree
-            (tnode lineno,
-                   (- tknCol 1)
-                   filename token token)))
-  "")
+(defn- testid (name)
+  (or (REGEX.id.test name) (REGEX.id2.test name)))
 
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-;;
-(defn- parseError (c tree) (synError c tree))
+var MACROS_MAP = {};
+var ERRORS_MAP= {
+  e0: "Syntax Error",
+  e1: "Empty statement",
+  e2: "Invalid characters in function name",
+  e3: "End of File encountered, unterminated string",
+  e4: "Closing square bracket, without an opening square bracket",
+  e5: "End of File encountered, unterminated array",
+  e6: "Closing curly brace, without an opening curly brace",
+  e7: "End of File encountered, unterminated javascript object '}'",
+  e8: "End of File encountered, unterminated parenthesis",
+  e9: "Invalid character in var name",
+  e10: "Extra chars at end of file. Maybe an extra ')'.",
+  e11: "Cannot Open include File",
+  e12: "Invalid no of arguments to ",
+  e13: "Invalid Argument type to ",
+  e14: "End of File encountered, unterminated regular expression",
+  e15: "Invalid vararg position, must be last argument.",
+  e16: "Invalid arity (args > expected) to ",
+  e17: "Invalid arity (args < expected) to " };
 
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-;;
-(defn- lexer (tlen)
-  (var tree [] token = "" c nil
-       esc? false str? false qstr? false
-       regex? false comment? false endList? false)
+//////////////////////////////////////////////////////////////////////////////
+//
+if (typeof window === "undefined") {
+  path = require("path");
+  fs = require("fs");
+}
 
-  (set! tree "_filename" filename)
-  (set! tree "_line" lineno)
+//////////////////////////////////////////////////////////////////////////////
+//
+if (!String.prototype.repeat) {
+  String.prototype.repeat = function(num) {
+    return new Array(num + 1).join(this);
+  };
+}
 
-  (while (< pos tlen)
-    (set! c  (.charAt codeStr pos))
-    (++ colno)
-    (++ pos)
-    (when (= c "\n")
-      (++ lineno)
-      (set! colno 1)
-      (if comment?
-        (set! comment? false)))
-    (if comment? { continue; }
-      if (isEsc) {
-        isEsc= false; token += c; continue; }
-      // strings
-      if (c === '"') {
-        isStr = !isStr; token += c; continue; }
-      if (isStr) {
-        if (c === "\n") {
-          token += "\\n"; }
-        else {
-          if (c === "\\") { isEsc= true; }
-          token += c;
-        }
-        continue;
-      }
-      if (c === "'") {
-        isSQStr = !isSQStr;
-        token += c; continue; }
-      if (isSQStr) {
-        token += c; continue; }
-      // data types
-      if (c === "[") {
-        ++jsArray;
-        token += c; continue; }
-      if (c === "]") {
-        if (jsArray === 0) {
-          parseError("e4", tree); }
-        --jsArray;
-        token += c; continue; }
-      if (jsArray > 0) {
-        token += c; continue; }
-      if (c === "{") {
-        ++jsObject;
-        token += c; continue; }
-      if (c === "}") {
-        if (jsObject === 0) {
-          parseError("e6", tree); }
-        --jsObject;
-        token += c; continue; }
-      if (jsObject > 0) {
-        token += c; continue; }
-      if (c === ";") {
-        isComment = true; continue; }
-      // regex
-      // regex in function position with first char " " is a prob. Use \s instead.
-      if (c === "/"&&
-          !(tree.length === 0 &&
-            token.length === 0 &&
-            REGEX.wspace.test(codeStr.charAt(pos)))) {
-        isRegex = !isRegex;
-        token += c; continue; }
-      if (isRegex) {
-        if (c === "\\") {
-          isEsc= true; }
-        token += c; continue; }
-      if (c === "(") {
-        token=addToken(tree,token); // catch e.g. "blah("
-        tknCol = colno;
-        tree.push(lexer());
-        continue;
-      }
-      if (c === ")") {
-        isEndForm = true;
-        token=addToken(tree,token);
-        tknCol = colno;
-        break;
-      }
-      if (REGEX.wspace.test(c)) {
-        if (c === "\n") { --lineno; }
-        token=addToken(tree,token);
-        if (c === "\n") { ++lineno; }
-        tknCol = colno;
-        continue;
-      }
-      token += c;
+//////////////////////////////////////////////////////////////////////////////
+//
+function normalizeId(name) {
+  let pfx="";
+  if (name && name.charAt(0) === "-") {
+    pfx="-";
+    name=name.slice(1);
+  }
+  if (testid(name)) {
+    return pfx + name.replace(/\?/g, "_QUERY").
+                      replace(/!/g, "_BANG").
+                      replace(/-/g, "_").
+                      replace(/\*/g, "_STAR");
+  } else {
+    return pfx === "" ? name : pfx + name;;
+  }
+}
+
+//////////////////////////////////////////////////////////////////////////////
+//
+function assert(cond, msg) {
+  if (! cond) { throw new Error(msg); }
+}
+
+//////////////////////////////////////////////////////////////////////////////
+//
+function whatis(obj) {
+  return Object.prototype.toString.call(obj);
+}
+
+//////////////////////////////////////////////////////////////////////////////
+//
+function isObject(obj) {
+  return whatis(obj) === "[object Object]";
+}
+
+//////////////////////////////////////////////////////////////////////////////
+//
+function isArray(obj) {
+  return whatis(obj) === "[object Array]";
+}
+
+//////////////////////////////////////////////////////////////////////////////
+//
+function isStr(obj) {
+  return whatis(obj) === "[object String]";
+}
+
+//////////////////////////////////////////////////////////////////////////////
+//
+function isUndef(obj) {
+  return whatis(obj) === "[object Undefined]";
+}
+
+//////////////////////////////////////////////////////////////////////////////
+//
+function isNode(obj) {
+  return isObject(obj) && obj["$$$isSourceNode$$$"] === true;
+}
+
+//////////////////////////////////////////////////////////////////////////////
+//
+function handleError(no, line, filename, extra) {
+  throw new Error(ERRORS_MAP[no] +
+                  ((extra) ? " : " + extra : "") +
+                  ((line) ? "\nLine no " + line : "") +
+                  ((filename) ? "\nFile " + filename : ""));
+}
+
+//////////////////////////////////////////////////////////////////////////////
+//
+function synError(c,arr,cmd) {
+  return handleError(c, arr._line, arr._filename,cmd);
+}
+
+//////////////////////////////////////////////////////////////////////////////
+//
+function assertArgs(arr, cnt, err) {
+  if (arr.length !== cnt) { synError(err, arr); }
+}
+
+//////////////////////////////////////////////////////////////////////////////
+//
+function assertForm(f) {
+  if (! isform(f)) {
+    console.log("expecting form, got: " + whatis(f));
+  }
+}
+
+//////////////////////////////////////////////////////////////////////////////
+//
+function assertNode(n) {
+  if (! isNode(n)) {
+    console.log("expecting node, got: " + whatis(n));
+    if (isform(n)) {
+      console.log("expecting node, line: " + n._line);
     }
-    if (isStr || isSQStr) { parseError("e3", tree);}
-    if (isRegex) { parseError("e14", tree); }
-    if (jsArray > 0) { parseError("e5", tree); }
-    if (jsObject > 0) { parseError("e7", tree); }
-    if (!isEndForm) { parseError("e8", tree); }
-    return tree;
-  },
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-;;
-(defn- toAST (codeStr filename)
-  (set! codeStr (str "(" codeStr ")"))
-  (var length (alen codeStr)
-       pos  1
-       lineno  1
-       colno  1
-       tknCol 1)
-  ;;(defn- addToken (tree token filename lineno tknCol)
-  let lexer = function() {
+    assert(false, "source node expected");
+  }
+}
+
+//////////////////////////////////////////////////////////////////////////////
+//
+function inst(obj) { return typeof obj; }
+
+//////////////////////////////////////////////////////////////////////////////
+//
+function isarray(a) { return Array.isArray(a); }
+function isform(a) { return Array.isArray(a); }
+
+//////////////////////////////////////////////////////////////////////////////
+//
+function pad(z) { return " ".repeat(z); }
+
+//////////////////////////////////////////////////////////////////////////////
+//
+function tnodeString() {
+  let str = "";
+  this.walk(function (chunk,hint) {
+    if (hint.name === chunk && isStr(chunk)) {
+      chunk= normalizeId(chunk);
+    }
+    str += chunk;
+  });
+  return str;
+}
+
+//////////////////////////////////////////////////////////////////////////////
+//
+function tnode(ln,col,fn,chunk,name) {
+  let n;
+  if (arguments.length > 0) {
+    n= name ? new TreeNode(ln, col, fn, chunk, name)
+            : new TreeNode(ln, col, fn, chunk);
+  } else {
+    n= new TreeNode();
+  }
+  n.toString= tnodeString;
+  return n;
+}
+
+//////////////////////////////////////////////////////////////////////////////
+//
+function tnodeChunk(chunk,name) {
+  return name ? tnode(null,null,null,chunk,name)
+              :tnode(null,null,null,chunk);
+}
+
+//////////////////////////////////////////////////////////////////////////////
+//
+function toAST(codeStr, filename) {
+  let codeArray = Array.from("(" + codeStr + ")");
+  let jsArray = 0,
+      jsObject = 0,
+      pos = 1,
+      lineno = 1,
+      colno = 1,
+      tknCol = 1,
+      addToken = function(tree,token) {
+        if (token) {
+          if (":else" == token) { token="true";}
+          if ("nil" == token) { token="null";}
+          if (token.startsWith(":") &&
+              testid(token.substring(1))) {
+            token="\"" + token.substring(1) + "\"";
+          }
+          tree.push(tnode(lineno,
+                          tknCol - 1,
+                          filename, token, token));
+        }
+        return "";
+      },
+      parseError=function(c,tree) {
+        synError(c, tree);
+      };
+  let lexer = function(prevToken) {
     let tree = [],
         token = "",
         c,
-        jsArray = 0,
-        jsObject = 0,
+        isArray=false,
+        isObject=false,
         isEsc= false,
         isStr = false,
         isSQStr = false,
@@ -163,8 +273,11 @@
         isEndForm = false;
     tree._filename = filename;
     tree._line = lineno;
-    while (pos < length) {
-      c = codeStr.charAt(pos);
+    if (prevToken) {
+      addToken(tree,prevToken);
+    }
+    while (pos < codeArray.length) {
+      c = codeArray[pos];
       ++colno;
       ++pos;
       if (c === "\n") {
@@ -195,25 +308,36 @@
         token += c; continue; }
       // data types
       if (c === "[") {
-        ++jsArray;
-        token += c; continue; }
+        token=addToken(tree,token); // catch e.g. "blah["
+        tknCol = colno;
+        isArray=true;
+        //codeArray.splice(pos,0, "v","e", "c", " ");
+        tree.push(lexer("["));
+        continue;
+      }
       if (c === "]") {
-        if (jsArray === 0) {
-          parseError("e4", tree); }
-        --jsArray;
-        token += c; continue; }
-      if (jsArray > 0) {
-        token += c; continue; }
+        token=addToken(tree,token);
+        token=addToken(tree,"]");
+        isArray = false;;
+        isEndForm=true;
+        tknCol = colno;
+        break;
+      }
       if (c === "{") {
-        ++jsObject;
-        token += c; continue; }
+        token=addToken(tree,token); // catch e.g. "blah{"
+        tknCol = colno;
+        isObject=true;
+        tree.push(lexer("{"));
+        continue;
+      }
       if (c === "}") {
-        if (jsObject === 0) {
-          parseError("e6", tree); }
-        --jsObject;
-        token += c; continue; }
-      if (jsObject > 0) {
-        token += c; continue; }
+        token=addToken(tree,token);
+        token=addToken(tree,"}");
+        isObject = false;;
+        isEndForm=true;
+        tknCol = colno;
+        break;
+      }
       if (c === ";") {
         isComment = true; continue; }
       // regex
@@ -221,7 +345,7 @@
       if (c === "/"&&
           !(tree.length === 0 &&
             token.length === 0 &&
-            REGEX.wspace.test(codeStr.charAt(pos)))) {
+            REGEX.wspace.test(codeArray[pos]))) {
         isRegex = !isRegex;
         token += c; continue; }
       if (isRegex) {
@@ -251,781 +375,963 @@
     }
     if (isStr || isSQStr) { parseError("e3", tree);}
     if (isRegex) { parseError("e14", tree); }
-    if (jsArray > 0) { parseError("e5", tree); }
-    if (jsObject > 0) { parseError("e7", tree); }
+    if (jsArray) { parseError("e5", tree); }
+    //if (jsObject > 0) { parseError("e7", tree); }
     if (!isEndForm) { parseError("e8", tree); }
     return tree;
   },
   ret = lexer();
-  return (pos < length) ? handleError("e10") : ret;
+  return (pos < codeArray.length) ? handleError("e10") : ret;
 }
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-;;
-(defn- evalAST (astTree)
-  (var ret (tnode)
-       pstr ""
-       len (alen astTree))
-
-  (+= gIndent gIndentSize)
-  (set! pstr (pad gIndent))
-
-  (each astTree
-        (fn (expr i tree)
-          (let (name "" tmp nil r "")
-            (if (list? expr)
-              (do
-                (if (node? (1st expr))
-                  (set! name (.-name (1st expr))))
-                (set! tmp (evalForm expr))
-                (when (= name "include")
-                  (.add ret tmp)
-                  (set! tmp nil)))
-              (set! tmp expr))
-            (when (and (= i (- len 1))
-                       gIndent
-                       (not (REGEX.noret.test name)))
-              (set! r "return "))
-            (when tmp
-              (.add ret
-                    (vec (str pstr r)
-                         tmp
-                         (if gNoSemiColon "\n" ";\n"))))
-            (set! gNoSemiColon false))))
-  (-= gIndent gIndentSize)
-  ret)
-
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-;;
-(defn- onMacro (form mc)
-  (var m  (evalMacro mc form))
-  (if (list? m) (evalForm m) m))
-
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-;;
-(defn- evalForm (form)
-
-  (var cmd (.-name (1st form))
-      mc (get MACROS-MAP cmd))
-
-  (cond
-    (some? mc)
-    (onMacro form mc)
-
-    (and (string? cmd)
-         (.startsWith cmd ".-"))
-    (let (ret (tnode) f2 (2nd form))
-      (.add ret (if (list? f2)
-                  (evalForm f2) f2))
-      (.prepend ret "(")
-      (.add ret (vec ")[\"" (.slice cmd 2) "\"]"))
-      ret)
-
-    (and (string? cmd)
-         (= (.charAt cmd 0) "."))
-    (let (ret (tnode) f2 (2nd form))
-      (.add ret (if (list? f2)
-                  (evalForm f2) f2))
-      (.add ret (vec (1st form) "("))
-      (for ((i 2) (< i (alen form)) (i (+ i 1)))
-        (if (not= i 2) (.add ret ","))
-        (.add ret (if (list? (nth form i))
-                    (evalForm (nth form i) (nth form i)))))
-      (.add ret ")")
-      ret)
-
-    :else
-    (let (f (if (string? cmd)
-              (get SPECIAL-FORMS cmd)))
-      (if f
-        (f form)
-        (do
-          (evalSexp form)
-          (let (f1 (1st form))
-            (if-not f1 (handleError 1 (.-line form)))
-            (if (REGEX.fn.test f1)
-              (set! f1 (tnodeChunk (vec "(" f1 ")"))))
-            (tnodeChunk
-              (vec f1
-                   "("
-                   (.join (tnodeChunk
-                            (.slice form 1)) ",") ")"))))))))
-
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-;;
-(defn- evalSexp (sexp)
-  (each sexp
-        (fn (part i list)
-            (if (list? part) (set! list i (evalForm part))))))
-
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-;;
-(defn- evalMacroOp (source tree cmd frags ename)
-  (var s1 (nth source 1)
-       s1name (-.name s1)
-       a nil
-       g nil
-       frag (get frags (str TILDA s1name)))
-
-  (cond
-    (= ename "#<<")
-    (do
-      (if-not (list? frag)
-        (synError :e13 tree cmd))
-      (set! a (.shift frag))
-      (if (undef? a)
-          (synError :e12 tree cmd))
-      a)
-
-    (= ename "#head")
-    (if-not (list? frag)
-      (synError :e13 tree cmd)
-      (1st frag))
-
-    (= ename "#tail")
-    (if-not (list? frag)
-      (synError :e13 tree cmd)
-      (last frag))
-
-    (.startsWith ename "#slice@")
-    (do
-      (if-not (list? frag)
-        (synError :e13 tree cmd))
-      (set! g (REGEX.macroGet.exec ename))
-      (assert (and g (= 2 (alen g)) (> (2nd g) 0))
-              (str "Invalid macro slice: " ename))
-      (set! a (1st (.splice frag (- (2nd g) 1) 1)))
-      (if (undef? a)
-        (synError :e12 tree cmd))
-      a)
-
-    (= ename "#if")
-    (do
-      (if-not (list? frag)
-        (synError :e13 tree cmd))
-      (if (not-empty frag)
-        (expand (nth source 2))
-        (if (nth source 3)
-          (expand (nth source 3))
-          undefined)))))
-
-
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-;;
-(defn- expandMacro (source)
-
-  (var ret (vec)
-       len (alen source)
-       ename (.-name (1st source)))
-
-  (doto ret
-    (set! "_filename" (.-_filename tree))
-    (set! "_line" (.-line tree)))
-
-  (if (REGEX.macroOp.test ename)
-    (evalMacroOp source tree cmd frags ename)
-    (loop (i) (0)
-      (if-not (< i len)
-        ret
-        (let (si (nth source i) c nil)
-          (if (list? si)
-            (conj!! ret (expand si))
-            (let (token si
-                  repl nil
-                  bak token
-                  atSign? false)
-              (when (.includes (.-name token) "@")
-                (set! atSign? true)
-                (set! bak (tnode (.-line token)
-                                 (.-column token)
-                                 (.-source token)
-                                 (.replace (.-name token) "@" "")
-                                 (.replace (.-name token) "@" ""))))
-              (if (get frags (.-name bak))
-                (do
-                  (set! repl (get frags (.-name bak)))
-                  (if (or atSign?
-                          (= (.-name bak) TILDA_VARGS))
-                    (for ((j 0) (< j (alen repl)) (j (+ j 1)))
-                      (conj!! ret (nth repl j)))
-                    (conj!! ret repl)))
-                (conj!! ret token))))
-          (recur (+ i 1)))))))
-
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-;;
-(defn- evalMacro (mc cmd tree)
-
-  (var args (get mc "args")
-       code (get mc "code")
-       vargs false
-       tpos 0
-       i 0
-       frags (object))
-
-  (for ((i 0) (< i (alen args)) (i (+ i 1)))
-    ;; skip the cmd at 0
-    (set! tpos (+ i 1))
-    (if (= (.-name (nth args i)) VARGS)
-      (do
-        (set! frags TILDA_VARGS (.slice tree tpos))
-        (set! vargs true))
-      (set! frags
-            (str TILDA (.-name (nth args i)))
-            (if (>= tpos (.alen tree))
-              (tnodeChunk "undefined") (nth tree tpos)))))
-
-  (if (and (not vargs)
-           (< (+ i 1) (alen tree)))
-    (synError :e16 tree cmd))
-
-  (expandMacro code))
-
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-;;
-(defn- sf_compOp (list)
-  (if (< (alen list) 3) (synError :e0 list))
-  (evalSexp list)
-
-  ;; dont use === as arr[0] is a source node
-  (if (eq? (1st list) "!=") (set! list 0  "!=="))
-  (if (eq? (1st list) "=") (set! list 0 "==="))
-
-  (var op (.shift list)
-       ret (tnode)
-       end (eindex list))
-
-  (for ((i 0) (< i end) (i (+ i 1)))
-    (.add ret (tnodeChunk (vec (nth list i)
-                               " " op " "
-                               (nth list (+ i 1))))))
-  (doto ret
-    (.join " && ")
-    (.prepend "(")
-    (.add ")")))
-
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-;;
-(defn- sf_arithOp (list)
-  (if (< (alen list) 3) (synError :e0 list))
-  (evalSexp list)
-
-  (var op (tnode)
-       ret (tnode))
-
-  (.add op (vec " " (.shift list) " "))
-  (.add ret list)
-  (.join ret op)
-  (.prepend ret "(")
-  (.add ret ")")
-  ret)
-
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-;;
-(defn- sf_logicalOp (list)
-  (sf_arithOp list))
-
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-;; special forms
-
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-;;
-(defn- sf_repeat (arr)
-
-  (if (not= (alen arr) 3)
-    (synError :e0 arr))
-
-  (evalSexp arr)
-  (var ret (tnode)
-       end (parseInt (.-name (aget arr 1))))
-  (for ((i 0) (< i end) (i (+ i 1)))
-    ( if (not= i 0)
-      (.add ret ","))
-    (.add ret (aget arr 2)))
-  (.prepend ret "[")
-  (.add ret "]")
-  ret)
-
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-;;
-(defn- sf_do (list)
-
-  (var end (eindex list)
-       last (nth list end)
-       p (pad gIndent)
-       ret (tnode)
-       e nil)
-
-  (for ((i 1) (< i end) (i (+ i 1)))
-    (set! e (nth list i))
-    (.add ret (vec p (evalForm e) ";\n")))
-
-  (set! e (if (isform? last) (evalForm last) last))
-  (doto ret
-    (.add (vec p "return " e ";\n"))
-    (.prepend (str p "(function() {\n"))
-    (.add (str p "})()"))))
-
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-;;
-(defn- sf_doto (list)
-
-  (if (< (alen list) 2)
-    (synError :e0 list))
-
-  (var ret (tnode)
-       p (pad gIndent)
-       p2 (pad (+ gIndent gIndentSize))
-       p3 (pad (+ gIndent (* 2 gIndentSize)))
-       e nil
-       e1 (1st list))
-
-  (set! e1 (if (isform? e1) (evalForm e1) e1))
-  (.add ret (vec p2 "let ___x = " e1 ";\n"))
-
-  (for ((i  2) (< i (alen list)) (i (+ i 1)))
-    (set! e (nth list i))
-    (.splice e 1 0  "___x")
-    (.add ret (vec p3 (evalForm e) ";\n")))
-
-  (doto ret
-    (.add (vec p2 "return ___x;\n"))
-    (.prepend (str p "(function() {\n"))
-    (.add (str p "})()"))))
-
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-;;
-(defn- sf_range (arr)
-
-  (if (or (< (alen arr) 2)
-          (> (alen arr) 4))
-    (synError :e0 arr))
-
-  (evalSexp arr)
-  (var ret (tnode)
-       len (alen arr)
-       start 0
-       step 1
-       end (parseInt (.-name (aget arr 1))))
-  (when (> len 2)
-    (set! start (parseInt (.-name (aget arr 1))))
-    (set! end (parseInt (.-name (aget arr 2)))))
-  (if (> len 3)
-    (set! step (parseInt (.-name (aget arr 3)))))
-
-  (for ((i start) (< i end) (i (+ i step)))
-    (if (not= i start)
-      (.add ret ","))
-    (.add ret (str "" i)))
-  (.prepend ret "[")
-  (.add ret "]")
-  ret)
-
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-;;
-(defn- sf_var (arr cmd)
-
-  (if (or (< (alen arr) 3)
-          (= 0 (mod (alen arr) 2)))
-    (synError :e0 arr))
-
-  ( if (> (alen arr) 3)
-    (set! gIndent (+ gIndent gIndentSize)))
-
-  (evalSexp arr)
-  (var ret (tnode))
-  (for ((i 1) (< i (alen arr)) (i (+ i 2)))
-    (if (> i 1)
-      (.add ret (str ",\n" (pad gIndent))))
-    (if-not (REGEX.id.test (aget arr i))
-      (synError :e9 arr))
-    (.add ret (vec (aget arr i) " = "  (aget arr (+ i 1)))))
-  (.prepend ret " ")
-  (.prepend ret cmd)
-  (if (> (alen arr) 3)
-    (set! gIndent (- gIndent gIndentSize)))
-  ret)
-
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-;;
-(defn- sf_new (arr)
-  ( if (< (alen arr) 2) (synError :e0 arr))
-  (var ret (tnode))
-  (.add ret (evalForm (.slice arr 1)))
-  (.prepend ret "new ")
-  ret)
-
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-;;
-(defn- sf_throw (arr)
-  (assertArgs arr 2 :e0)
-  (var ret ( tnode))
-  (.add ret (if (isform? (aget arr 1))
-                (evalForm (aget arr 1)) (aget arr 1)))
-  (.prepend ret "throw ")
-  (.add ret ";")
-  ret)
-
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-;;
-(defn- sf_while (form)
-  (var f1 (2nd form))
-  (.splice form 0 2 (tnodeChunk "do" "do"))
-  (tnodeChunk
-    (vec "while "
-         (if (list? f1) (evalForm f1) f1)
-         " {\n"
-         (evalForm form) ";\n}\n")))
-
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-;;
-(defn- sf_x_opop (form op)
-  (assertArgs form 2 :e0)
-  (tnodeChunk
-    (vec op
-         (if (list? (2nd form))
-           (evalForm (2nd form)) (2nd form)))))
-
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-;;
-(defn- sf_x_eq (form op)
-  (assertArgs form 3 :e0)
-  (tnodeChunk
-    (vec (2nd form)
-         (str " " op "= ")
-         (if (list? (nth form 2))
-           (evalForm (nth form 2)) (nth form 2)))))
-
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-;;
-(defn- sf_set (arr)
-  (if (or (< (alen arr) 3)
-          (> (alen arr) 4))
-    (synError :e0 arr))
-  (when (= (alen arr) 4)
-    (if (isform? (aget arr 1))
-      (set! arr 1 (evalForm (aget arr 1))))
-    (if (isform? (aget arr 2))
-      (set! arr 2 (evalForm (aget arr 2))))
-    (set! arr 1 (str (aget arr 1) "[" (aget arr 2) "]"))
-    (set! arr 2 (aget arr 3)))
-
-  (tnodeChunk (vec (aget arr 1)
-                   " = "
-                   (if (isform? (aget arr 2))
-                     (evalForm (aget arr 2))
-                     (aget arr 2)))))
-
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-;;
-(defn- sf_anonFunc (arr)
-  (if (< (alen arr) 2) (synError :e0 arr))
-
-  (if-not (isform? (aget arr 1))
-    (synError :e0 arr))
-
-  (var fArgs (aget arr 1)
-       fBody (.slice arr 2)
-       ret (tnodeChunk fArgs))
-  (.join ret ",")
-  (.prepend ret "function (")
-  (.add ret (vec ") {\n"
-                 (evalAST fBody)
-                 (pad gIndent) "}"))
-  ret)
-
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-;;
-(defn- sf_func (arr public?)
-
-  (if (< (alen arr) 2) (synError :e0 arr))
-
-  (var ret nil
-       fName nil
-       fArgs nil fBody nil)
-
-  (if (and (not (isform? (aget arr 1)))
-           (isform? (aget arr 2)))
-    (do
-      (set! fName (normalizeId (.-name (aget arr 1))))
-      (set! fArgs (aget arr 2))
-      (set! fBody (.slice arr 3)))
-    (synError :e0 arr))
-
-  (set! ret (tnodeChunk fArgs))
-  (.join ret ",")
-  (.prepend ret (str "function " fName "("))
-  (.add ret (vec ") {\n"
-                 (evalAST fBody)
-                 (pad gIndent) "}"))
-  (set! gNoSemiColon true)
-  ret)
-
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-;;
-(defn- sf_try (arr)
-
-  (var sz (.-length arr)
-       t nil
-       f nil
-       c nil
-       ret nil
-       ind (pad gIndent))
-
-  ;if (sz < 2) { return ""; }
-
-  ;;look for finally
-  (set! f (aget arr (- sz 1)))
-  (if (and (isform? f)
-           (= (.-name (aget f 0)) "finally"))
-    (do
-      (set! f (.pop arr))
-      (set! sz (.-length arr)))
-    (set! f nil))
-
-  ;;look for catch
-  (set! c (if (> sz 1) (aget arr (- sz 1)) nil))
-  (if (and (isform? c)
-           (= (.-name (aget c 0)) "catch"))
-    (do
-      (if (or (< (.-length c) 2)
-              (not (isNode? (aget c 1)))) (synError :e0 arr))
-      (set! c (.pop arr)))
-    (set! c nil))
-
-  ;;try needs either a catch or finally or both
-  (if (and (nil? f)
-           (nil? c)) (synError :e0 arr))
-
-  (set! ret
-    (tnodeChunk((vec (str "(function() {\n" ind "try {\n")
-                     (evalAST (.slice arr 1))
-                     (str "\n" ind "} ")))))
-  (when c
-    (set! t (aget c 1))
-    (.splice c 0 2 (tnodeChunk "do" "do"))
-    (.add ret (vec (str "catch ("  t  ") {\n")
-                   (evalForm c)
-                   (str ";\n" ind "}\n"))))
-
-  (when f
-    (.splice f 0 1 (tnodeChunk "do" "do"))
-    (.add ret (vec "finally {\n"
-                   (evalForm f)
-                   (str ";\n" ind "}\n"))))
-
-  (.add ret (str ind "})()"))
-  ret)
-
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-;;
-(defn- sf_if (arr)
-  (if (or (< (.-length arr) 3)
-          (> (.-length arr) 4))
-    (synError :e0 arr))
-  (set! gIndent (+ gIndent gIndentSize))
-  (evalSexp arr)
-  (try
-    (tnodeChunk (vec "("
-                       (aget arr 1)
-                       (str " ?\n" (pad gIndent))
-                       (aget arr 2)
-                       (str " :\n" (pad gIndent))
-                       (or (aget arr 3) "undefined") ")"))
-    (finally
-      (set! gIndent (- gIndent gIndentSize)))))
-
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-;;
-(defn- sf_get (arr)
-  (assertArgs arr 3 :e0)
-  (evalSexp arr)
-  (tnodeChunk (vec (aget arr 1) "[" (aget arr 2) "]")))
-
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-;;
-(defn- sf_str (arr)
-  (if (< (.-length arr) 2) (synError :e0 arr))
-  (evalSexp arr)
-  (do-with (ret (tnode))
-    (.add ret (.slice arr 1))
-    (.join ret ",")
-    (.prepend ret "[")
-    (.add ret "].join('')")))
-
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-;;
-(defn- sf_array (arr)
-  (var ret (tnode)
-       p (pad gIndent)
-       epilog (str "\n" p "]"))
-
-  (if (= 1 (.-length arr))
-    (do
-      (.add ret "[]") ret)
-    (try
-      (set! gIndent (+ gIndent gIndentSize))
-      (evalSexp arr)
-      (set! p (pad gIndent))
-      (.add ret (str "[\n" p))
-      (for ((i 1)
-            (< i (.-length arr))
-            (i (+ i 1)))
-        (if (> i 1) (.add ret (str ",\n" p)))
-        (.add ret (aget arr i)))
-      (.add ret epilog)
-      ret
-      (finally
-        (set! gIndent (- gIndent gIndentSize))))))
-
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-;;
-(defn- sf_object (arr)
-  (var ret (tnode)
-       p (pad gIndent)
-       epilog (str "\n" p "}"))
-
-  (if (= 1 (.-length arr))
-    (do
-      (.add ret "{}") ret)
-    (try
-      (set! gIndent (+ gIndent gIndentSize))
-      (evalSexp arr)
-      (set! p (pad gIndent))
-      (.add ret (str "{\n" p))
-      (for ((i 1) (< i (.-length arr)) (i (+ i 2)))
-        (if (> i 1) (.add ret (str ",\n" p)))
-        (.add ret (vec (aget arr i) ": " (aget arr (+ i 1)))))
-      (.add ret epilog)
-      ret
-      (finally
-        (set! gIndent (- gIndent  gIndentSize))))))
-
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-;;
-(defn- includeFile ()
-  (var icache (vec))
-  (fn (fname)
-    (if (not= -1 (.indexOf icache fname))
-      ""
-      (do
-        (.push icache fname)
-        (evalAST (toAST (fs.readFileSync fname) fname))))))
-
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-;;
-(defn- sf_include (arr)
-
-  (assertArgs arr 2 :e0)
-
-  (var found false
-       fname (.-name (aget arr 1)))
-
-  (if (string? fname)
-    (set! fname (.replace fname (new Regex "\"'" "g") "")))
-  (set! gIndent (- gIdent gIndentSize))
-
-  (conj gIncludePaths (.dirname path (.-_filename arr)))
-
-  (when-not
-    (some gIncludePaths
-          (fn (elem)
-              (try!
-                (do->true
-                  (set! fname
-                    (.realpathSync fs
-                                   (str elem "/" fname)))))))
-    (synError :e11 arr))
-
-  (try
-    ((includeFile) fname)
-    (finally
-      (set! gIndent (+ gIndent gIndentSize)))))
-
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-;;
-(defn- sf_ns (arr) "")
-
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-;;
-(defn- sf_comment (arr) "")
-
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-;;
-(defn- sf_jscode (arr)
-  (assertArgs arr 2 :e0)
-  (set! gNoSemiColon true)
-  (.replaceRight (aget arr 1)
-                 (new Regex "\"" "g") "")
-  (aget arr 1))
-
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-;;
-(defn- sf_macro (arr)
-  (assertArgs arr 4 :e0)
-  (assertNode (aget arr 1))
-  (assertForm (aget arr 2))
-  (dotimes (i (.-length (aget arr 2)))
-    (if (and (= (.-name (aget (aget arr 2) i)) VARGS)
-             (not= (+ i 1) (.-length (aget arr 2))))
-      (synError :e15 arr (.-name (aget arr 1)))))
-  (set! MACROS_MAP (.-name (aget arr 1))
-                   (object args (aget arr 2)
-                           code (aget arr 3)))
-  "")
-
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-;;
-(defn- sf_not (arr)
-  (assertArgs arr 2 :e0)
-  (evalSexp arr)
-  (str "(!" (aget arr 1) ")"))
-
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-;;
-(defn- dbg (obj hint)
-  (cond
-    (array? obj)
-    (do
-      (set! hint (or hint "block"))
-      (console.log (str "<" hint ">"))
-      (dotimes (i (.-length obj))
-        (dbg (aget obj i)))
-      (console.log (str "</" hint ">")))
-    (isNode? obj)
-    (do
-      (console.log "<node>")
-      (console.log obj)
-      (dbg (.-children obj) "subs")
-      (console.log "</node>"))
-    :else
-    (console.log obj)))
-
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-;;
-(defn- dbgAST (codeStr fname)
-  (dbg (toAST codeStr fname) "tree"))
-
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-;;
-(defn- compileCode (codeStr fname srcMap? incPaths)
-
-  (if (array? incPaths) (set! gIncludePaths incPaths))
-  (set! gIndent (- gIndent gIndentSize))
-
-  (var outNode (evalAST (toAST codeStr fname)))
-  (.prepend outNode gBanner)
-
-  (if srcMap?
-    (let (outFile (str (.basename path fname ".lisp") ".js")
-          srcMap (str outFile ".map")
-          output (.toStringWithSourceMap outNode (object file outFile)))
-      (.writeFileSync fs srcMap (.-map output))
-      (str (.-code output)
-           "\n//# sourceMappingURL="
-           (.relative path (.dirname path fname) srcMap)))
-    (.toString outNode)))
 
-
+//////////////////////////////////////////////////////////////////////////////
+// [expr,...] -> TreeNode
+function evalAST(astTree) {
+  let ret = tnode(),
+      pstr = "",
+      len = astTree.length;
+
+  indent += indentSize;
+  pstr = pad(indent);
+
+  astTree.forEach(function(expr, i, tree) {
+    let name="", tmp = null, r = "";
+    if (isform(expr)) {
+      if (isNode(expr[0])) {
+        name = expr[0].name;
+      }
+      tmp = evalForm(expr) ;
+      if (name === "include") {
+        ret.add(tmp);
+        tmp=null;
+      }
+    } else {
+      tmp = expr;
+    }
+    if (i === len - 1 &&
+        indent &&
+        !REGEX.noret.test(name)) {
+      r = "return ";
+    }
+    if (tmp) {
+      ret.add([pstr + r,
+               tmp, noSemiColon ? "\n" : ";\n"]);
+      noSemiColon = false;
+    }
+  });
+
+  indent -= indentSize;
+  return ret;
+}
+
+//////////////////////////////////////////////////////////////////////////////
+//
+function evalForm(form) {
+
+  if (!form || !form[0]) { return null; }
+
+  let cmd = "",
+      mc=null;
+
+  if (isNode(form[0])) {
+    cmd=form[0].name;
+    mc= MACROS_MAP[cmd];
+  }
+  if (mc) {
+    let m = evalMacro(mc, cmd, form);
+    return isform(m) ? evalForm(m) : m;
+  }
+
+  if (isStr(cmd)) {
+    if (cmd.startsWith(".-")) {
+      let ret = tnode();
+      ret.add(isform(form[1])
+              ? evalForm(form[1]) : form[1]);
+      ret.prepend("(");
+      ret.add([")[\"", cmd.slice(2), "\"]"]);
+      return ret;
+    }
+    if (cmd.charAt(0) === ".") {
+      let ret = tnode();
+      ret.add(isform(form[1])
+              ? evalForm(form[1]) : form[1]);
+      ret.add([form[0], "("]);
+      for (var i=2; i < form.length; ++i) {
+        if (i !== 2) { ret.add(","); }
+        ret.add(isform(form[i])
+                ? evalForm(form[i]) : form[i]);
+      }
+      ret.add(")");
+      return ret;
+    }
+    switch (cmd) {
+      case "comment": return sf_comment(form);
+      case "repeat-n": return sf_repeat(form);
+      case "doto": return sf_doto(form);
+      case "do": return sf_do(form);
+      case "for": return sf_floop(form);
+      case "ns": return sf_ns(form);
+      case "range": return sf_range(form);
+      case "while": return sf_while(form);
+      case "var": return sf_var(form, "let");
+      case "def-":
+      case "def": return sf_var(form, "var");
+      case "new": return sf_new(form);
+      case "throw": return sf_throw(form);
+      case "set!": return sf_set(form);
+      case "dec!": return sf_x_eq(form, "-");
+      case "inc!": return sf_x_eq(form, "+");
+      case "dec!!": return sf_x_opop(form, "--");
+      case "inc!!": return sf_x_opop(form, "++");
+      case "aget":
+      case "get": return sf_get(form);
+      case "defn-": return sf_func(form, false);
+      case "defn": return sf_func(form, true);
+      case "fn": return sf_anonFunc(form);
+      case "try": return sf_try(form);
+      case "if": return sf_if(form);
+      case "str": return sf_str(form);
+      case "[":
+      case "vec": return sf_array(form);
+      case "{":
+      case "hash-map": return sf_object(form);
+      case "include": return sf_include(form);
+      case "js#": return sf_jscode(form);
+      case "defmacro": return sf_macro(form);
+      case "+":
+      case "-":
+      case "*":
+      case "/":
+      case "%":
+        return sf_arithOp(form);
+      break;
+      case "||":
+      case "&&":
+      case "^":
+      case "|":
+      case "&":
+      case ">>>":
+      case ">>":
+      case "<<":
+        return sf_logicalOp(form);
+      break;
+      case "!=":
+      case "==":
+      case "=":
+      case ">":
+      case ">=":
+      case "<":
+      case "<=":
+        return sf_compOp(form);
+      break;
+      case "!":
+        return sf_not(form);
+      break;
+    }
+  }
+
+  evalSexp(form);
+
+  let s,fName = form[0];
+  if (!fName) {
+    handleError(1, form._line);
+  }
+  if (REGEX.fn.test(fName)) {
+    fName = tnodeChunk(["(", fName, ")"]);
+  }
+
+  return tnodeChunk([fName, "(",
+                     tnodeChunk(form.slice(1)).join(","), ")"]);
+}
+
+//////////////////////////////////////////////////////////////////////////////
+//
+function evalSexp(sexp) {
+  sexp.forEach(function(part, i, t) {
+    if (isform(part)) { t[i] = evalForm(part); }
+  });
+}
+
+//////////////////////////////////////////////////////////////////////////////
+//
+function evalMacro(mc, cmd, tree) {
+  let args = mc["args"],
+      code = mc["code"],
+      vargs=false,
+      tpos, i, frags = {};
+
+  for (i = 0; i < args.length; ++i) {
+    tpos=i+1; // skip the cmd at 0
+    if (args[i].name === VARGS) {
+      frags[TILDA_VARGS] = tree.slice(tpos);
+      vargs=true;
+      break;
+    }
+    //if (tpos >= tree.length) { synError("e17", tree, cmd); }
+    frags[TILDA + args[i].name] =
+      (tpos >= tree.length) ? tnodeChunk("undefined") : tree[tpos];
+  }
+  if (!vargs && (i+1) < tree.length) {
+    synError("e16", tree, cmd);
+  }
+
+  // handle homoiconic expressions in macro
+  let expand = function(source) {
+    let ret= [],
+        ename = "";
+
+    ret._filename = tree._filename;
+    ret._line = tree._line;
+
+    if (isNode(source[0])) {
+      ename=source[0].name;
+    }
+    if (REGEX.macroOp.test(ename)) {
+      let s1name= source[1].name,
+          a, g,
+          frag = frags[TILDA + s1name];
+      if (ename === "#<<") {
+        if (!isarray(frag)) {
+          synError("e13", tree, cmd);
+        }
+        a = frag.shift();
+        if (isUndef(a)) {
+          synError("e12", tree, cmd);
+        }
+        return a;
+      }
+      if (ename === "#head") {
+        if (!isarray(frag)) {
+          synError("e13", tree, cmd);
+        }
+        return frag[0];
+      }
+      if (ename === "#tail") {
+        if (!isarray(frag)) {
+          synError("e13", tree, cmd);
+        }
+        return frag[frag.length-1];
+      }
+      if (ename.startsWith("#evens")) {
+        var r=[];
+        for (var i=1; i < frag.length; i=i+2) {
+          r.push(frag[i]);
+        }
+        if (ename.endsWith("*")) { r.___split=true; }
+        return r;
+      }
+      if (ename.startsWith("#odds")) {
+        var r=[];
+        for (var i=0; i < frag.length; i=i+2) {
+          r.push(frag[i]);
+        }
+        if (ename.endsWith("*")) { r.___split=true; }
+        return r;
+      }
+      if (ename.startsWith("#slice@")) {
+        if (!isarray(frag)) {
+          synError("e13", tree, cmd);
+        }
+        g= REGEX.macroGet.exec(ename);
+        assert(g && g.length == 2 && g[1] > 0,
+               "Invalid macro slice: " + ename);
+        a= frag.splice(g[1]-1, 1)[0];
+        if (isUndef(a)) {
+          synError("e12", tree, cmd);
+        }
+        return a;
+      }
+      if (ename === "#if") {
+        if (!isarray(frag)) {
+          synError("e13", tree, cmd);
+        }
+        if (frag.length > 0) {
+          return expand(source[2]);
+        } else if (source[3]) {
+          return expand(source[3]);
+        } else {
+          return;
+        }
+      }
+    }
+
+    for (var i = 0; i < source.length; ++i) {
+      if (isarray(source[i])) {
+        let c = expand(source[i]);
+        if (c) {
+          if (isarray(c) && c.___split === true) {
+            for (var i=0; i < c.length; ++i) {
+              ret.push(c[i]);
+            }
+          } else {
+            ret.push(c);
+          }
+        }
+      } else {
+        let token = source[i],
+            bak = token,
+            isATSign = false;
+        if (token.name.indexOf("@") >= 0) {
+          isATSign = true;
+          bak = tnode(token.line,
+                      token.column,
+                      token.source,
+                      token.name.replace("@", ""),
+                      token.name.replace("@", ""));
+        }
+        if (frags[bak.name]) {
+          let repl = frags[bak.name];
+          if (isATSign ||
+              bak.name === TILDA_VARGS) {
+            for (var j = 0; j < repl.length; ++j) {
+              ret.push(repl[j]);
+            }
+          } else {
+            ret.push(repl);
+          }
+        } else {
+          ret.push(token);
+        }
+      }
+    }
+    return ret;
+  }
+
+  return expand(code);
+}
+
+//////////////////////////////////////////////////////////////////////////////
+//
+function sf_compOp(arr) {
+  if (arr.length < 3) { synError("e0", arr); }
+  evalSexp(arr);
+
+  // dont use === as arr[0] is a source node
+  if (arr[0] == "!=") { arr[0] = "!=="; }
+  if (arr[0] == "=") { arr[0] = "==="; }
+
+  let op = arr.shift(),
+      ret = tnode();
+
+  for (var i = 0; i < arr.length - 1; ++i) {
+    ret.add(tnodeChunk([arr[i], " ", op, " ", arr[i + 1]]));
+  }
+
+  ret.join(" && ");
+  ret.prepend("(");
+  ret.add(")");
+  return ret;
+}
+
+//////////////////////////////////////////////////////////////////////////////
+//
+function sf_arithOp(arr) {
+  if (arr.length < 3) { synError("e0", arr); }
+  evalSexp(arr);
+
+  let op = tnode(),
+      ret= tnode();
+
+  op.add([" ", arr.shift(), " "]);
+  ret.add(arr);
+  ret.join(op);
+  ret.prepend("(");
+  ret.add(")");
+  return ret;
+}
+
+//////////////////////////////////////////////////////////////////////////////
+//
+function sf_logicalOp(arr) {
+  return sf_arithOp(arr);
+}
+
+//////////////////////////////////////////////////////////////////////////////
+//special forms
+//////////////////////////////////////////////////////////////////////////////
+
+function sf_repeat(form) {
+
+  if (form.length !== 3) {
+    synError("e0", form); }
+
+  evalSexp(form);
+  let ret = tnode(),
+      end= parseInt(form[1].name);
+  for (var i = 0; i < end; ++i) {
+    if (i !== 0) {
+      ret.add(",");
+    }
+    ret.add(form[2]);
+  }
+  ret.prepend("[");
+  ret.add("]");
+  return ret;
+}
+
+//////////////////////////////////////////////////////////////////////////////
+//
+function sf_do(form) {
+
+  if (form.length < 2) { return ""; }
+
+  let end = form.length -1,
+      last = form[end],
+      p = pad(indent),
+      ret= tnode(),
+      e;
+
+  for (var i = 1; i < end; ++i) {
+    e=form[i];
+    ret.add([p, evalForm(e), ";\n"]);
+  }
+  e= isform(last) ? evalForm(last) : last;
+  ret.add([p, "return ", e, ";\n"]);
+  ret.prepend(p + "(function() {\n");
+  ret.add(p+"})()");
+  return ret;
+}
+
+//////////////////////////////////////////////////////////////////////////////
+//
+function sf_doto(form) {
+
+  if (form.length < 2) {
+    synError("e0", form); }
+
+  let ret= tnode(),
+      p = pad(indent),
+      p2 = pad(indent + indentSize),
+      p3 = pad(indent + indentSize * 2),
+      e, e1 = form[1];
+  e1= isform(e1) ? evalForm(e1) : e1;
+  ret.add([p2, "let ___x = ", e1, ";\n"]);
+  for (var i = 2; i < form.length; ++i) {
+    e=form[i];
+    e.splice(1,0, "___x");
+    ret.add([p3, evalForm(e), ";\n"]);
+  }
+  ret.add([p2, "return ___x;\n"]);
+  ret.prepend(p + "(function() {\n");
+  ret.add(p+"})()");
+  return ret;
+}
+
+//////////////////////////////////////////////////////////////////////////////
+//
+function sf_range(form) {
+
+  if (form.length < 2 || form.length > 4) {
+    synError("e0", form); }
+
+  evalSexp(form);
+  let ret = tnode(),
+      len= form.length,
+      start=0,
+      step=1,
+      end= parseInt(form[1].name);
+  if (len > 2) {
+    start= parseInt(form[1].name);
+    end= parseInt(form[2].name);
+  }
+  if (len > 3) {
+    step= parseInt(form[3].name);
+  }
+  for (var i = start; i < end; i = i + step) {
+    if (i !== start) {
+      ret.add(",");
+    }
+    ret.add(""+i);
+  }
+  ret.prepend("[");
+  ret.add("]");
+  return ret;
+}
+
+//////////////////////////////////////////////////////////////////////////////
+function sf_var(form, cmd) {
+
+  if (form.length < 3 ||
+      0 === (form.length % 2)) {
+    synError("e0", form); }
+
+  if (form.length > 3) {
+    indent += indentSize; }
+
+  evalSexp(form);
+  let ret = tnode();
+  for (var i = 1; i < form.length; i = i + 2) {
+    if (i > 1) {
+      ret.add(",\n" + pad(indent));
+    }
+    if (!testid(form[i])) { synError("e9", form); }
+    ret.add([form[i], " = ", form[i + 1]]);
+  }
+  ret.prepend(" ");
+  ret.prepend(cmd);
+  if (form.length > 3) {
+    indent -= indentSize; }
+  return ret;
+}
+
+//////////////////////////////////////////////////////////////////////////////
+//
+function sf_new(form) {
+  if (form.length < 2) { synError("e0", form); }
+  let ret = tnode();
+  ret.add(evalForm(form.slice(1)));
+  ret.prepend("new ");
+  return ret;
+}
+
+//////////////////////////////////////////////////////////////////////////////
+//
+function sf_throw(form) {
+  assertArgs(form, 2, "e0");
+  let ret = tnode();
+  ret.add(isform(form[1]) ? evalForm(form[1]) : form[1]);
+  //ret.prepend("(function(){ throw ");
+  //ret.add(";})()");
+  ret.prepend("throw ");
+  ret.add(";");
+  return ret;
+}
+
+function sf_while(form) {
+  let f1=form[1];
+  form.splice(0,2,tnodeChunk("do","do"));
+  return tnodeChunk(
+    ["while ",
+     isform(f1) ? evalForm(f1) : f1,
+     " {\n",
+     evalForm(form),
+     ";\n}\n"]);
+}
+
+function sf_x_opop(form, op) {
+  if (form.length !== 2) { synError("e0", form); }
+  return tnodeChunk([op,
+                     isform(form[1]) ? evalForm(form[1]) : form[1]]);
+}
+
+function sf_x_eq(form, op) {
+  if (form.length !== 3) { synError("e0", form); }
+  return tnodeChunk([form[1],
+                     " " + op + "= ",
+                     isform(form[2]) ? evalForm(form[2]) : form[2]]);
+}
+
+//////////////////////////////////////////////////////////////////////////////
+//
+function sf_set(form) {
+  if (form.length < 3 || form.length > 4) {
+    synError("e0", form); }
+  if (form.length === 4) {
+    if (isform(form[1])) { form[1]= evalForm(form[1]); }
+    if (isform(form[2])) { form[2]= evalForm(form[2]); }
+    form[1] = form[1] + "[" + form[2] + "]";
+    form[2] = form[3];
+  }
+  return tnodeChunk([form[1],
+                     " = ",
+                     isform(form[2]) ? evalForm(form[2]) : form[2]]);
+}
+
+//////////////////////////////////////////////////////////////////////////////
+//
+function sf_anonFunc(arr) {
+  if (arr.length < 2) { synError("e0", arr); }
+
+  if (! isform(arr[1])) {
+    synError("e0", arr);
+  }
+
+  let fArgs = arr[1],
+      fBody = arr.slice(2),
+      ret = tnodeChunk(fArgs);
+  ret.join(",");
+  ret.prepend("function (");
+  ret.add([") {\n",evalAST(fBody), pad(indent), "}"]);
+  return ret;
+}
+
+//////////////////////////////////////////////////////////////////////////////
+//
+function sf_func(arr, public) {
+
+  if (arr.length < 2) { synError("e0", arr); }
+
+  let ret, fName, fArgs, fBody;
+
+  if (!isform(arr[1]) && isform(arr[2])) {
+    fName = normalizeId(arr[1].name);
+    fArgs = arr[2];
+    fBody = arr.slice(3);
+  }
+  else { synError("e0", arr); }
+
+  ret = tnodeChunk(fArgs);
+  ret.join(",");
+  ret.prepend("function " + fName + "(");
+  ret.add([") {\n",evalAST(fBody), pad(indent), "}"]);
+  noSemiColon = true;
+  return ret;
+}
+
+//////////////////////////////////////////////////////////////////////////////
+//
+function sf_try(arr) {
+
+  let sz= arr.length,
+      t, f, c, ret,
+      ind = pad(indent);
+
+  if (sz < 2) { return ""; }
+
+  //look for finally
+  f=arr[sz-1];
+  if (isform(f) && f[0].name === "finally") {
+    f=arr.pop();
+    sz=arr.length;
+  } else { f=null; }
+  //look for catch
+  c= sz > 1 ? arr[sz-1] : null;
+  if (isform(c) && c[0].name === "catch") {
+    if (c.length < 2 || !isNode(c[1])) {
+      synError("e0", arr);
+    }
+    c=arr.pop();
+  } else { c=null; }
+
+  //try needs either a catch or finally or both
+  if (f === null && c === null) { synError("e0", arr); }
+
+  ret= tnodeChunk(["(function() {\n" + ind + "try {\n",
+                   evalAST(arr.slice(1)),
+                   "\n" + ind + "} "]);
+  if (c) {
+    t=c[1];
+    c.splice(0,2, tnodeChunk("do","do"));
+    ret.add(["catch (" + t + ") {\n",
+             "return ", evalForm(c), ";\n" + ind + "}\n"]);
+  }
+  if (f) {
+    f.splice(0,1, tnodeChunk("do","do"));
+    ret.add(["finally {\n",
+             evalForm(f), ";\n" + ind + "}\n"]);
+  }
+
+  ret.add(ind + "})()");
+  return ret;
+}
+
+//////////////////////////////////////////////////////////////////////////////
+//
+function sf_if(arr) {
+  if (arr.length < 3 || arr.length > 4)  {
+    synError("e0", arr); }
+  indent += indentSize;
+  evalSexp(arr);
+  try {
+    return tnodeChunk(["(",
+                       arr[1],
+                       " ?\n" + pad(indent),
+                       arr[2],
+                       " :\n" + pad(indent),
+                       (arr[3] || "undefined"), ")"]);
+  } finally {
+    indent -= indentSize;
+  }
+}
+
+//////////////////////////////////////////////////////////////////////////////
+//
+function sf_get(arr) {
+  assertArgs(arr, 3, "e0");
+  evalSexp(arr);
+  return tnodeChunk([arr[1], "[", arr[2], "]"]);
+}
+
+//////////////////////////////////////////////////////////////////////////////
+//
+function sf_str(arr) {
+  if (arr.length < 2) { synError("e0", arr); }
+  evalSexp(arr);
+  let ret = tnode();
+  ret.add(arr.slice(1));
+  ret.join(",");
+  ret.prepend("[");
+  ret.add("].join('')");
+  return ret;
+}
+
+//////////////////////////////////////////////////////////////////////////////
+//
+function sf_array(arr) {
+  let ret = tnode(),
+      p= pad(indent),
+      epilog="\n" + p + "]";
+
+  if (arr.length < 3) {
+    ret.add("[]");
+    return ret;
+  }
+
+  try {
+    indent += indentSize;
+    evalSexp(arr);
+    p= pad(indent);
+    ret.add("[\n" + p);
+    for (var i = 1; i < (arr.length-1); ++i) {
+      if (i > 1) {
+        ret.add(",\n" + p);
+      }
+      ret.add(arr[i]);
+    }
+    ret.add(epilog);
+    return ret;
+  } finally {
+    indent -= indentSize;
+  }
+}
+
+//////////////////////////////////////////////////////////////////////////////
+//
+function sf_object(arr) {
+  let ret = tnode(),
+      p= pad(indent),
+      epilog= "\n" + p + "}";
+
+  if (arr.length < 3) {
+    ret.add("{}");
+    return ret;
+  }
+
+  try {
+    indent += indentSize;
+    evalSexp(arr);
+    p=pad(indent);
+    ret.add("{\n" + p);
+    for (var i = 1; i < (arr.length - 1); i = i + 2) {
+      if (i > 1) {
+        ret.add(",\n" + p); }
+      ret.add([arr[i], ": ", arr[i + 1]]);
+    }
+    ret.add(epilog);
+    return ret;
+  } finally {
+    indent -= indentSize;
+  }
+}
+
+//////////////////////////////////////////////////////////////////////////////
+//
+var includeFile = (function () {
+  let icache = [];
+  return function(fname) {
+    if (icache.indexOf(fname) !== -1) { return ""; }
+    icache.push(fname);
+    return evalAST(toAST(fs.readFileSync(fname), fname));
+  };
+})();
+
+//////////////////////////////////////////////////////////////////////////////
+//
+function sf_include(arr) {
+
+  assertArgs(arr, 2, "e0");
+
+  let found=false,
+      fname = arr[1].name;
+
+  if (isStr(fname)) {
+    fname = fname.replace(/["']/g, ""); }
+  indent -= indentSize;
+
+  include_dirs.
+    concat([path.dirname(arr._filename)]).
+    forEach(function(pfx) {
+      if (found) { return; }
+      try {
+        fname = fs.realpathSync(pfx + '/' +fname);
+        found = true;
+      } catch (err) {}
+    });
+
+  if (!found) { synError("e11", arr); }
+
+  try {
+    return includeFile(fname);
+  } finally {
+    indent += indentSize;
+  }
+}
+
+//////////////////////////////////////////////////////////////////////////////
+//
+function sf_ns(arr) {
+  return "";
+}
+
+//////////////////////////////////////////////////////////////////////////////
+//
+function sf_comment(arr) {
+  return "";
+}
+
+//////////////////////////////////////////////////////////////////////////////
+//
+function sf_floop(arr) {
+//(floop ((i 1) (< i (.-length arr)) (i (+ i 2)))
+
+  if (arr.length < 2) { synError("e0",arr); }
+
+  let c1,c2,c3,
+      c=arr[1],
+      ind= pad(indent),
+      ret=tnodeChunk("for (");
+
+  if (!isform(c) || c.length !== 3) { synError("e0",arr); }
+
+  c1=c[0];
+  c2=c[1];
+  c3=c[2];
+
+  indent += indentSize;
+
+  for (var i=0; i < c1.length; i=i+2) {
+    if (i==0) {ret.add("var "); }
+    if (i !== 0) { ret.add(","); }
+    ret.add([c1[i],
+             " = ",
+             isform(c1[i+1]) ? evalForm(c1[i+1]) : c1[i+1]]);
+  }
+  ret.add("; ");
+  ret.add(evalForm(c2));
+  ret.add("; ");
+  for (var i=0; i < c3.length; i=i+2) {
+    if (i !== 0) { ret.add(","); }
+    ret.add([c3[i],
+            " = ",
+            isform(c3[i+1]) ? evalForm(c3[i+1]) : c3[i+1]]);
+  }
+  ret.add(") {\n");
+  if (arr.length > 2) {
+    arr.splice(0,2, tnodeChunk("do","do"));
+    ret.add([ind, pad(indentSize), evalForm(arr), ";"]);
+  }
+  ret.add("\n" + ind + "}\n");
+  indent -= indentSize;
+  return ret;
+}
+
+//////////////////////////////////////////////////////////////////////////////
+//
+function sf_jscode(arr) {
+  assertArgs(arr, 2, "e0");
+  noSemiColon = true;
+  arr[1].replaceRight(/"/g, "");
+  return arr[1];
+}
+
+//////////////////////////////////////////////////////////////////////////////
+//
+function sf_macro(arr) {
+  assertArgs(arr, 4, "e0");
+  assertNode(arr[1]);
+  assertForm(arr[2]);
+  let a2=arr[2];
+
+  for (var i=0; i < a2.length; ++i) {
+    if (a2[i].name === VARGS &&
+        (i+1) !== a2.length) {
+      synError("e15", arr, arr[1].name);
+    }
+  }
+  MACROS_MAP[arr[1].name] = {args: a2,
+                             code: arr[3]};
+  return "";
+}
+
+//////////////////////////////////////////////////////////////////////////////
+//
+function sf_not(arr) {
+  assertArgs(arr, 2, "e0");
+  evalSexp(arr);
+  return "(!" + arr[1] + ")";
+}
+
+
+
+//////////////////////////////////////////////////////////////////////////////
+//
+function dbg(obj, hint) {
+  if (isarray(obj)) {
+    hint= hint || "block";
+    console.log("<"+hint+">");
+    for (var i=0; i < obj.length; ++i) {
+      dbg(obj[i]);
+    }
+    console.log("</"+hint+">");
+  } else if (isNode(obj)) {
+    console.log("<node>");
+    console.log(obj);
+    dbg(obj.children,"subs");
+    console.log("</node>");
+  } else {
+    console.log(obj);
+  }
+}
+
+//////////////////////////////////////////////////////////////////////////////
+//
+function dbgAST(codeStr, fname) {
+  let tree= toAST(codeStr, fname);
+  dbg(tree, "tree");
+}
+
+//////////////////////////////////////////////////////////////////////////////
+//
+function compileCode(codeStr, fname, withSrcMap, a_include_dirs) {
+
+  if (a_include_dirs) { include_dirs = a_include_dirs; }
+  indent = -indentSize;
+
+  let outNode = evalAST(toAST(codeStr, fname));
+  outNode.prepend(banner);
+
+  if (withSrcMap) {
+    let outFile = path.basename(fname, ".lisp") + ".js",
+        srcMap = outFile + ".map",
+        output = outNode.toStringWithSourceMap( { file: outFile });
+
+    fs.writeFileSync(srcMap, output.map);
+    return output.code +
+           "\n//# sourceMappingURL=" +
+           path.relative(path.dirname(fname), srcMap);
+  } else {
+    return outNode.toString();
+  }
+}
+
+//////////////////////////////////////////////////////////////////////////////
+//
+exports.transpileWithSrcMap=function(code,file,incDirs) {
+  return compileCode(code,file,true,incDirs);
+};
+exports.transpile=function(code,file,incDirs) {
+  return compileCode(code,file,false,incDirs);
+};
+exports.version = version;
+exports.dbgAST=dbgAST;
+exports.parseWithSourceMap = function(codeStr, fname) {
+  let outNode = evalAST(toAST(codeStr, fname));
+  outNode.prepend(banner);
+  return outNode.toStringWithSourceMap();
+};
+
+//////////////////////////////////////////////////////////////////////////////
+//EOF
 
 
 
