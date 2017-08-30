@@ -26,7 +26,7 @@
       TILDA "~"
       TILDA-VARGS (str TILDA VARGS))
 
-(def *indent* -indentSize)
+(def- indentWidth -indentSize)
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;
@@ -38,6 +38,27 @@
     func (new RegExp "^function\\b")
     wspace (new RegExp "\\s") })
 
+(def- MACROS_MAP {})
+(def- ERRORS_MAP {
+  e0 "Syntax Error"
+  e1 "Empty statement"
+  e2 "Invalid characters in function name"
+  e3 "End of File encountered, unterminated string"
+  e4 "Closing square bracket, without an opening square bracket"
+  e5 "End of File encountered, unterminated array"
+  e6 "Closing curly brace, without an opening curly brace"
+  e7 "End of File encountered, unterminated javascript object '}'"
+  e8 "End of File encountered, unterminated parenthesis"
+  e9 "Invalid character in var name"
+  e10 "Extra chars at end of file. Maybe an extra ')'."
+  e11 "Cannot Open include File"
+  e12 "Invalid no of arguments to "
+  e13 "Invalid Argument type to "
+  e14 "End of File encountered, unterminated regular expression"
+  e15 "Invalid vararg position, must be last argument."
+  e16 "Invalid arity (args > expected) to "
+  e17 "Invalid arity (args < expected) to " })
+
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;
 (defn- conj!! (list obj)
@@ -48,41 +69,10 @@
 (defn- testid (name)
   (or (REGEX.id.test name) (REGEX.id2.test name)))
 
-var MACROS_MAP = {};
-var ERRORS_MAP= {
-  e0: "Syntax Error",
-  e1: "Empty statement",
-  e2: "Invalid characters in function name",
-  e3: "End of File encountered, unterminated string",
-  e4: "Closing square bracket, without an opening square bracket",
-  e5: "End of File encountered, unterminated array",
-  e6: "Closing curly brace, without an opening curly brace",
-  e7: "End of File encountered, unterminated javascript object '}'",
-  e8: "End of File encountered, unterminated parenthesis",
-  e9: "Invalid character in var name",
-  e10: "Extra chars at end of file. Maybe an extra ')'.",
-  e11: "Cannot Open include File",
-  e12: "Invalid no of arguments to ",
-  e13: "Invalid Argument type to ",
-  e14: "End of File encountered, unterminated regular expression",
-  e15: "Invalid vararg position, must be last argument.",
-  e16: "Invalid arity (args > expected) to ",
-  e17: "Invalid arity (args < expected) to " };
-
-//////////////////////////////////////////////////////////////////////////////
-//
-if (typeof window === "undefined") {
-  path = require("path");
-  fs = require("fs");
-}
-
-//////////////////////////////////////////////////////////////////////////////
-//
-if (!String.prototype.repeat) {
-  String.prototype.repeat = function(num) {
-    return new Array(num + 1).join(this);
-  };
-}
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;
+;;(if (typeof window === "undefined") {
+;;path = require("path"); fs = require("fs"); }
 
 //////////////////////////////////////////////////////////////////////////////
 //
@@ -140,8 +130,17 @@ function isUndef(obj) {
 
 //////////////////////////////////////////////////////////////////////////////
 //
-function isNode(obj) {
-  return isObject(obj) && obj["$$$isSourceNode$$$"] === true;
+function isNode(obj,tree) {
+  try {
+    if (obj === null) {
+      throw "poo";
+    }
+    return isObject(obj) && obj["$$$isSourceNode$$$"] === true;
+  } catch (e) {
+    console.log("DUDE");
+    console.log("tree = " + tree._line);
+    throw e;
+  }
 }
 
 //////////////////////////////////////////////////////////////////////////////
@@ -175,8 +174,8 @@ function assertForm(f) {
 
 //////////////////////////////////////////////////////////////////////////////
 //
-function assertNode(n) {
-  if (! isNode(n)) {
+function assertNode(n, tree) {
+  if (! isNode(n, tree)) {
     console.log("expecting node, got: " + whatis(n));
     if (isform(n)) {
       console.log("expecting node, line: " + n._line);
@@ -273,15 +272,19 @@ function toAST(codeStr, filename) {
         isEndForm = false;
     tree._filename = filename;
     tree._line = lineno;
-    if (prevToken) {
-      addToken(tree,prevToken);
+    if (prevToken === "[") {
+      tree._array=true;
+    } else if (prevToken === "{") {
+      tree._object=true;
     }
+
     while (pos < codeArray.length) {
       c = codeArray[pos];
       ++colno;
       ++pos;
       if (c === "\n") {
         ++lineno;
+        gLINE=lineno;
         colno = 1;
         if (isComment) {
           isComment = false; }
@@ -311,20 +314,19 @@ function toAST(codeStr, filename) {
         token=addToken(tree,token); // catch e.g. "blah["
         tknCol = colno;
         isArray=true;
-        //codeArray.splice(pos,0, "v","e", "c", " ");
         tree.push(lexer("["));
         continue;
       }
       if (c === "]") {
         token=addToken(tree,token);
-        token=addToken(tree,"]");
-        isArray = false;;
+        //token=addToken(tree,"]");
+        isArray = false;
         isEndForm=true;
         tknCol = colno;
         break;
       }
       if (c === "{") {
-        token=addToken(tree,token); // catch e.g. "blah{"
+        token=addToken(tree,token);
         tknCol = colno;
         isObject=true;
         tree.push(lexer("{"));
@@ -332,8 +334,8 @@ function toAST(codeStr, filename) {
       }
       if (c === "}") {
         token=addToken(tree,token);
-        token=addToken(tree,"}");
-        isObject = false;;
+        //token=addToken(tree,"}");
+        isObject = false;
         isEndForm=true;
         tknCol = colno;
         break;
@@ -369,6 +371,7 @@ function toAST(codeStr, filename) {
         token=addToken(tree,token);
         if (c === "\n") { ++lineno; }
         tknCol = colno;
+        gLINE=lineno;
         continue;
       }
       token += c;
@@ -397,7 +400,7 @@ function evalAST(astTree) {
   astTree.forEach(function(expr, i, tree) {
     let name="", tmp = null, r = "";
     if (isform(expr)) {
-      if (isNode(expr[0])) {
+      if (isNode(expr[0], expr)) {
         name = expr[0].name;
       }
       tmp = evalForm(expr) ;
@@ -428,15 +431,17 @@ function evalAST(astTree) {
 //
 function evalForm(form) {
 
-  if (!form || !form[0]) { return null; }
-
   let cmd = "",
       mc=null;
 
-  if (isNode(form[0])) {
+  if (form._array === true) { cmd="["; }
+  else if (form._object === true) { cmd="{"; }
+  else if (!form[0]) { return null; }
+  else if (isNode(form[0], form)) {
     cmd=form[0].name;
     mc= MACROS_MAP[cmd];
   }
+
   if (mc) {
     let m = evalMacro(mc, cmd, form);
     return isform(m) ? evalForm(m) : m;
@@ -583,9 +588,17 @@ function evalMacro(mc, cmd, tree) {
     ret._filename = tree._filename;
     ret._line = tree._line;
 
-    if (isNode(source[0])) {
+    if (source._array === true) {
+      ret._array=true;
+    }
+    else if (source._object === true) {
+      ret._object=true;
+    }
+    else
+    if (isNode(source[0], source)) {
       ename=source[0].name;
     }
+
     if (REGEX.macroOp.test(ename)) {
       let s1name= source[1].name,
           a, g,
@@ -594,23 +607,21 @@ function evalMacro(mc, cmd, tree) {
         if (!isarray(frag)) {
           synError("e13", tree, cmd);
         }
-        a = frag.shift();
-        if (isUndef(a)) {
-          synError("e12", tree, cmd);
-        }
-        return a;
+        return a = frag.shift();
+        //if (a) { return a; }
+        //synError("e12", tree, cmd);
       }
       if (ename === "#head") {
         if (!isarray(frag)) {
           synError("e13", tree, cmd);
         }
-        return frag[0];
+        return frag.length > 0 ? frag[0] : undefined;
       }
       if (ename === "#tail") {
         if (!isarray(frag)) {
           synError("e13", tree, cmd);
         }
-        return frag[frag.length-1];
+        return frag.length > 0 ? frag[frag.length-1] : undefined;
       }
       if (ename.startsWith("#evens")) {
         var r=[];
@@ -636,9 +647,7 @@ function evalMacro(mc, cmd, tree) {
         assert(g && g.length == 2 && g[1] > 0,
                "Invalid macro slice: " + ename);
         a= frag.splice(g[1]-1, 1)[0];
-        if (isUndef(a)) {
-          synError("e12", tree, cmd);
-        }
+        //if (isUndef(a)) { synError("e12", tree, cmd); }
         return a;
       }
       if (ename === "#if") {
@@ -650,7 +659,7 @@ function evalMacro(mc, cmd, tree) {
         } else if (source[3]) {
           return expand(source[3]);
         } else {
-          return;
+          return undefined;
         }
       }
     }
@@ -997,7 +1006,7 @@ function sf_try(arr) {
   //look for catch
   c= sz > 1 ? arr[sz-1] : null;
   if (isform(c) && c[0].name === "catch") {
-    if (c.length < 2 || !isNode(c[1])) {
+    if (c.length < 2 || !isNode(c[1], c)) {
       synError("e0", arr);
     }
     c=arr.pop();
@@ -1072,9 +1081,13 @@ function sf_array(arr) {
       p= pad(indent),
       epilog="\n" + p + "]";
 
-  if (arr.length < 3) {
+  if (arr.length === 0) {
     ret.add("[]");
     return ret;
+  }
+
+  if (arr._array === true) {} else {
+    arr.splice(0,1);
   }
 
   try {
@@ -1082,8 +1095,8 @@ function sf_array(arr) {
     evalSexp(arr);
     p= pad(indent);
     ret.add("[\n" + p);
-    for (var i = 1; i < (arr.length-1); ++i) {
-      if (i > 1) {
+    for (var i = 0; i < arr.length; ++i) {
+      if (i > 0) {
         ret.add(",\n" + p);
       }
       ret.add(arr[i]);
@@ -1102,9 +1115,13 @@ function sf_object(arr) {
       p= pad(indent),
       epilog= "\n" + p + "}";
 
-  if (arr.length < 3) {
+  if (arr.length === 0) {
     ret.add("{}");
     return ret;
+  }
+
+  if (arr._object === true) {} else {
+    arr.splice(0,1);
   }
 
   try {
@@ -1112,8 +1129,8 @@ function sf_object(arr) {
     evalSexp(arr);
     p=pad(indent);
     ret.add("{\n" + p);
-    for (var i = 1; i < (arr.length - 1); i = i + 2) {
-      if (i > 1) {
+    for (var i = 0; i < arr.length; i = i + 2) {
+      if (i > 0) {
         ret.add(",\n" + p); }
       ret.add([arr[i], ": ", arr[i + 1]]);
     }
@@ -1238,9 +1255,10 @@ function sf_jscode(arr) {
 //
 function sf_macro(arr) {
   assertArgs(arr, 4, "e0");
-  assertNode(arr[1]);
+  assertNode(arr[1],arr);
   assertForm(arr[2]);
-  let a2=arr[2];
+  let a2=arr[2],
+      a3=arr[3];
 
   for (var i=0; i < a2.length; ++i) {
     if (a2[i].name === VARGS &&
@@ -1248,8 +1266,8 @@ function sf_macro(arr) {
       synError("e15", arr, arr[1].name);
     }
   }
-  MACROS_MAP[arr[1].name] = {args: a2,
-                             code: arr[3]};
+
+  MACROS_MAP[arr[1].name] = {args: a2, code: a3};
   return "";
 }
 
@@ -1332,6 +1350,7 @@ exports.parseWithSourceMap = function(codeStr, fname) {
 
 //////////////////////////////////////////////////////////////////////////////
 //EOF
+
 
 
 
