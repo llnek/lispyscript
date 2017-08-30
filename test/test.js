@@ -148,19 +148,19 @@ let lispyscript = function () {
       ["Failed - ","condition test default"].join('')),
     ((true === (10 === (function () {
         let recur = null,
-          ___xs = null,
-          ___f = function (i) {
+          __xs = null,
+          __f = function (i) {
             return ((i === 10) ?
               i :
               recur(++i));
           },
-          ___ret = ___f;
+          __ret = __f;
         recur = function () {
-          ___xs = arguments;
-          return ((!(typeof(___ret) === "undefined")) ?
+          __xs = arguments;
+          return ((!(typeof(__ret) === "undefined")) ?
                         (function() {
-            for (___ret=undefined; ___ret===undefined; ___ret=___f.apply(this,___xs));;
-            return ___ret;
+            for (__ret=undefined; __ret===undefined; __ret=__f.apply(this,__xs));;
+            return __ret;
             })() :
             undefined)
         };
@@ -186,8 +186,8 @@ let lispyscript = function () {
       let ret = 0;
       (function (o,f,s) {
         let _k = Object.keys(o);
-        return _k.forEach(function (elem) {
-          return f.call(s,o[elem],elem,o);
+        return _k.forEach(function (em) {
+          return f.call(s,o[em],em,o);
         });
       })({
         a: 1,
@@ -237,20 +237,22 @@ let lispyscript = function () {
       ["Passed - ","template test"].join('') :
       ["Failed - ","template test"].join('')),
     ((true === ("112233" ===       (function() {
-      let ___ret = "";
+      let __ret = "";
+      return       (function() {
       (function (o,f,s) {
         let _k = Object.keys(o);
-        return _k.forEach(function (elem) {
-          return f.call(s,o[elem],elem,o);
+        return _k.forEach(function (em) {
+          return f.call(s,o[em],em,o);
         });
       })({
         "1": 1,
         "2": 2,
         "3": 3
       },function (value,key) {
-        return ___ret = (___ret + [key,value].join(''));
+        return __ret = [__ret,[key,value].join('')].join('');
       });
-      return ___ret;
+      return __ret;
+      })();
       })())) ?
       ["Passed - ","template repeat key test"].join('') :
       ["Failed - ","template repeat key test"].join('')),
@@ -279,16 +281,16 @@ return       (function() {
       })())) ?
       ["Passed - ","try catch test - catch block"].join('') :
       ["Failed - ","try catch test - catch block"].join('')),
-    ((true === (3 === (function (___m) {
-        let ___u = function (v) {
-          return (((typeof(v) === "undefined") && (!(typeof(___m.zero) === "undefined"))) ?
-            ___m.zero :
-            ___m.unit(v));
+    ((true === (3 === (function (__m) {
+        let __u = function (v) {
+          return (((typeof(v) === "undefined") && (!(typeof(__m.zero) === "undefined"))) ?
+            __m.zero :
+            __m.unit(v));
         };
-        return ___m.bind(1,function (a) {
-          return ___m.bind((a * 2),function (b) {
+        return __m.bind(1,function (a) {
+          return __m.bind((a * 2),function (b) {
             return (function () {
-              return ___u((a + b));
+              return __u((a + b));
             })();
           });
         });
@@ -302,16 +304,16 @@ return       (function() {
       }))) ?
       ["Passed - ","Identity Monad Test"].join('') :
       ["Failed - ","Identity Monad Test"].join('')),
-    ((true === (3 === (function (___m) {
-        let ___u = function (v) {
-          return (((typeof(v) === "undefined") && (!(typeof(___m.zero) === "undefined"))) ?
-            ___m.zero :
-            ___m.unit(v));
+    ((true === (3 === (function (__m) {
+        let __u = function (v) {
+          return (((typeof(v) === "undefined") && (!(typeof(__m.zero) === "undefined"))) ?
+            __m.zero :
+            __m.unit(v));
         };
-        return ___m.bind(1,function (a) {
-          return ___m.bind((a * 2),function (b) {
+        return __m.bind(1,function (a) {
+          return __m.bind((a * 2),function (b) {
             return (function () {
-              return ___u((a + b));
+              return __u((a + b));
             })();
           });
         });
@@ -328,16 +330,16 @@ return       (function() {
       }))) ?
       ["Passed - ","maybe Monad Test"].join('') :
       ["Failed - ","maybe Monad Test"].join('')),
-    ((true === (null === (function (___m) {
-        let ___u = function (v) {
-          return (((typeof(v) === "undefined") && (!(typeof(___m.zero) === "undefined"))) ?
-            ___m.zero :
-            ___m.unit(v));
+    ((true === (null === (function (__m) {
+        let __u = function (v) {
+          return (((typeof(v) === "undefined") && (!(typeof(__m.zero) === "undefined"))) ?
+            __m.zero :
+            __m.unit(v));
         };
-        return ___m.bind(null,function (a) {
-          return ___m.bind((a * 2),function (b) {
+        return __m.bind(null,function (a) {
+          return __m.bind((a * 2),function (b) {
             return (function () {
-              return ___u((a + b));
+              return __u((a + b));
             })();
           });
         });
@@ -354,24 +356,24 @@ return       (function() {
       }))) ?
       ["Passed - ","maybe Monad null Test"].join('') :
       ["Failed - ","maybe Monad null Test"].join('')),
-    ((true === (54 === (function (___m) {
-        let ___u = function (v) {
-          return (((typeof(v) === "undefined") && (!(typeof(___m.zero) === "undefined"))) ?
-            ___m.zero :
-            ___m.unit(v));
+    ((true === (54 === (function (__m) {
+        let __u = function (v) {
+          return (((typeof(v) === "undefined") && (!(typeof(__m.zero) === "undefined"))) ?
+            __m.zero :
+            __m.unit(v));
         };
-        return ___m.bind([
+        return __m.bind([
           1,
           2,
           3
         ],function (a) {
-          return ___m.bind([
+          return __m.bind([
             3,
             4,
             5
           ],function (b) {
             return (function () {
-              return ___u((a + b));
+              return __u((a + b));
             })();
           });
         });
@@ -397,24 +399,24 @@ return       (function() {
       },0))) ?
       ["Passed - ","arrayMonad test"].join('') :
       ["Failed - ","arrayMonad test"].join('')),
-    ((true === (32 === (function (___m) {
-        let ___u = function (v) {
-          return (((typeof(v) === "undefined") && (!(typeof(___m.zero) === "undefined"))) ?
-            ___m.zero :
-            ___m.unit(v));
+    ((true === (32 === (function (__m) {
+        let __u = function (v) {
+          return (((typeof(v) === "undefined") && (!(typeof(__m.zero) === "undefined"))) ?
+            __m.zero :
+            __m.unit(v));
         };
-        return ___m.bind([
+        return __m.bind([
           1,
           2,
           3
         ],function (a) {
-          return ___m.bind([
+          return __m.bind([
             3,
             4,
             5
           ],function (b) {
             return (function () {
-              return ___u((((a + b) <= 6) ?
+              return __u((((a + b) <= 6) ?
                                 (function() {
                 return (a + b);
                 })() :
@@ -444,13 +446,13 @@ return       (function() {
       },0))) ?
       ["Passed - ","arrayMonad when test"].join('') :
       ["Failed - ","arrayMonad when test"].join('')),
-    ((true === (6 === (function (___m) {
-        let ___u = function (v) {
-          return (((typeof(v) === "undefined") && (!(typeof(___m.zero) === "undefined"))) ?
-            ___m.zero :
-            ___m.unit(v));
+    ((true === (6 === (function (__m) {
+        let __u = function (v) {
+          return (((typeof(v) === "undefined") && (!(typeof(__m.zero) === "undefined"))) ?
+            __m.zero :
+            __m.unit(v));
         };
-        return ___m.bind([
+        return __m.bind([
           1,
           2,
           0,
@@ -458,7 +460,7 @@ return       (function() {
           3
         ],function (a) {
           return (function () {
-            return ___u((a ?
+            return __u((a ?
                             (function() {
               return a;
               })() :
@@ -503,13 +505,13 @@ function browserTest() {
         tests = groupname(),
         passed = 0,
         failed = 0;
-      tests.forEach(function (elem) {
-        return (elem.match(/^Passed/) ?
+      tests.forEach(function (em) {
+        return (em.match(new RegExp("^Passed")) ?
           ++passed :
           ++failed);
       });
-      return [["\n",desc,"\n",start,"\n\n"].join(''),tests.reduce(function (___memo,elem,index) {
-        return (___memo + [elem,"\n"].join(''));
+      return [["\n",desc,"\n",start,"\n\n"].join(''),tests.reduce(function (__memo,__elem,__index,__arr) {
+        return [__memo,[__elem,"\n"].join('')].join('');
       },""),"\nTotal tests ",tests.length,"\nPassed ",passed,"\nFailed ",failed,"\nDuration ",(new Date() - start),"ms\n"].join('');
     })(lispyscript,"LispyScript Testing"),"</pre>"].join('') :
     el.innerHTML = (function (groupname,desc) {
@@ -517,13 +519,13 @@ function browserTest() {
         tests = groupname(),
         passed = 0,
         failed = 0;
-      tests.forEach(function (elem) {
-        return (elem.match(/^Passed/) ?
+      tests.forEach(function (em) {
+        return (em.match(new RegExp("^Passed")) ?
           ++passed :
           ++failed);
       });
-      return [["\n",desc,"\n",start,"\n\n"].join(''),tests.reduce(function (___memo,elem,index) {
-        return (___memo + [elem,"\n"].join(''));
+      return [["\n",desc,"\n",start,"\n\n"].join(''),tests.reduce(function (__memo,__elem,__index,__arr) {
+        return [__memo,[__elem,"\n"].join('')].join('');
       },""),"\nTotal tests ",tests.length,"\nPassed ",passed,"\nFailed ",failed,"\nDuration ",(new Date() - start),"ms\n"].join('');
     })(lispyscript,"LispyScript Testing"));
 }
@@ -533,13 +535,13 @@ function browserTest() {
       tests = groupname(),
       passed = 0,
       failed = 0;
-    tests.forEach(function (elem) {
-      return (elem.match(/^Passed/) ?
+    tests.forEach(function (em) {
+      return (em.match(new RegExp("^Passed")) ?
         ++passed :
         ++failed);
     });
-    return [["\n",desc,"\n",start,"\n\n"].join(''),tests.reduce(function (___memo,elem,index) {
-      return (___memo + [elem,"\n"].join(''));
+    return [["\n",desc,"\n",start,"\n\n"].join(''),tests.reduce(function (__memo,__elem,__index,__arr) {
+      return [__memo,[__elem,"\n"].join('')].join('');
     },""),"\nTotal tests ",tests.length,"\nPassed ",passed,"\nFailed ",failed,"\nDuration ",(new Date() - start),"ms\n"].join('');
   })(lispyscript,"LispyScript Testing")) :
   window.onload = browserTest);

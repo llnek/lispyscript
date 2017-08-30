@@ -2,23 +2,23 @@
 let x = "asfsafaaaa\n     poo";
 (function () {
   let recur = null,
-    ___xs = null,
-    ___f = function (a,times) {
+    __xs = null,
+    __f = function (a,times) {
       return ((times > a) ?
                 (function() {
         (4 + 5);
         console.log(["a=",a].join(''));
-        return recur((a + 1),times);
+        return recur((1 + a),times);
         })() :
         undefined);
     },
-    ___ret = ___f;
+    __ret = __f;
   recur = function () {
-    ___xs = arguments;
-    return ((!(typeof(___ret) === "undefined")) ?
+    __xs = arguments;
+    return ((!(typeof(__ret) === "undefined")) ?
             (function() {
-      for (___ret=undefined; ___ret===undefined; ___ret=___f.apply(this,___xs));;
-      return ___ret;
+      for (__ret=undefined; __ret===undefined; __ret=__f.apply(this,__xs));;
+      return __ret;
       })() :
       undefined)
   };
@@ -26,8 +26,8 @@ let x = "asfsafaaaa\n     poo";
 })();
 (function () {
   let recur = null,
-    ___xs = null,
-    ___f = function (result,x) {
+    __xs = null,
+    __f = function (result,x) {
       return ((0 === x) ?
         result :
                 (function() {
@@ -35,13 +35,13 @@ let x = "asfsafaaaa\n     poo";
         return recur(result,(x - 1));
         })());
     },
-    ___ret = ___f;
+    __ret = __f;
   recur = function () {
-    ___xs = arguments;
-    return ((!(typeof(___ret) === "undefined")) ?
+    __xs = arguments;
+    return ((!(typeof(__ret) === "undefined")) ?
             (function() {
-      for (___ret=undefined; ___ret===undefined; ___ret=___f.apply(this,___xs));;
-      return ___ret;
+      for (__ret=undefined; __ret===undefined; __ret=__f.apply(this,__xs));;
+      return __ret;
       })() :
       undefined)
   };
