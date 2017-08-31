@@ -18,6 +18,14 @@
 (def- TreeNode (.-SourceNode (require "source-map")))
 (def- fs nil path nil)
 
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;
+(when-not (undef? window)
+  (set! path (require "path"))
+  (set! fs (require "fs")))
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;
 (def- VERSION "1.0.0"
       includePaths []
       noSemi? false
@@ -43,6 +51,7 @@
     wspace (new RegExp "\\s") })
 
 (def- MACROS_MAP {})
+(def- SPEC-OPS {})
 (def- ERRORS_MAP {
   e0 "Syntax Error"
   e1 "Empty statement"
@@ -78,10 +87,6 @@
 (defn- testid [name]
   (or (REGEX.id.test name) (REGEX.id2.test name)))
 
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-;;
-;;(if (typeof window === "undefined") {
-;;path = require("path"); fs = require("fs"); }
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;
 (defn- normalizeId [name]
@@ -236,7 +241,7 @@
   (cond
     (some? mc)
     (do
-      (set! tmp (evalMacro mc cmd expr))
+      (set! tmp (evalMacro mc expr))
       (eval?? tmp))
     (string? cmd)
     (cond
@@ -314,755 +319,734 @@
            (if-not (list? frag)
              (syntax! :e13 data cmd)
              (.shift frag))
-
-    if (REGEX.macroOp.test(ename)) {
-      let s1name= source[1].name,
-          a, g,
-          frag = frags[TILDA + s1name];
-
-
-      if (ename === "#head") {
-        if (!isarray(frag)) {
-          synError("e13", tree, cmd);
-        }
-        return frag.length > 0 ? frag[0] : undefined;
-      }
-      if (ename === "#tail") {
-        if (!isarray(frag)) {
-          synError("e13", tree, cmd);
-        }
-        return frag.length > 0 ? frag[frag.length-1] : undefined;
-      }
-      if (ename.startsWith("#evens")) {
-        var r=[];
-        for (var i=1; i < frag.length; i=i+2) {
-          r.push(frag[i]);
-        }
-        if (ename.endsWith("*")) { r.___split=true; }
-        return r;
-      }
-      if (ename.startsWith("#odds")) {
-        var r=[];
-        for (var i=0; i < frag.length; i=i+2) {
-          r.push(frag[i]);
-        }
-        if (ename.endsWith("*")) { r.___split=true; }
-        return r;
-      }
-      if (ename.startsWith("#slice@")) {
-        if (!isarray(frag)) {
-          synError("e13", tree, cmd);
-        }
-        g= REGEX.macroGet.exec(ename);
-        assert(g && g.length == 2 && g[1] > 0,
-               "Invalid macro slice: " + ename);
-        a= frag.splice(g[1]-1, 1)[0];
-        //if (isUndef(a)) { synError("e12", tree, cmd); }
-        return a;
-      }
-      if (ename === "#if") {
-        if (!isarray(frag)) {
-          synError("e13", tree, cmd);
-        }
-        if (frag.length > 0) {
-          return expand(source[2]);
-        } else if (source[3]) {
-          return expand(source[3]);
-        } else {
-          return undefined;
-        }
-      }
-    }
-
-    for (var i = 0; i < source.length; ++i) {
-      if (isarray(source[i])) {
-        let c = expand(source[i]);
-        if (c) {
-          if (isarray(c) && c.___split === true) {
-            for (var i=0; i < c.length; ++i) {
-              ret.push(c[i]);
-            }
-          } else {
-            ret.push(c);
-          }
-        }
-      } else {
-        let token = source[i],
-            bak = token,
-            isATSign = false;
-        if (token.name.indexOf("@") >= 0) {
-          isATSign = true;
-          bak = tnode(token.line,
-                      token.column,
-                      token.source,
-                      token.name.replace("@", ""),
-                      token.name.replace("@", ""));
-        }
-        if (frags[bak.name]) {
-          let repl = frags[bak.name];
-          if (isATSign ||
-              bak.name === TILDA_VARGS) {
-            for (var j = 0; j < repl.length; ++j) {
-              ret.push(repl[j]);
-            }
-          } else {
-            ret.push(repl);
-          }
-        } else {
-          ret.push(token);
-        }
-      }
-    }
-    return ret;
-  }
-
-  return expand(code);
-}
-
-//////////////////////////////////////////////////////////////////////////////
-//
-function sf_compOp(arr) {
-  if (arr.length < 3) { synError("e0", arr); }
-  evalSexp(arr);
-
-  // dont use === as arr[0] is a source node
-  if (arr[0] == "!=") { arr[0] = "!=="; }
-  if (arr[0] == "=") { arr[0] = "==="; }
-
-  let op = arr.shift(),
-      ret = tnode();
-
-  for (var i = 0; i < arr.length - 1; ++i) {
-    ret.add(tnodeChunk([arr[i], " ", op, " ", arr[i + 1]]));
-  }
-
-  ret.join(" && ");
-  ret.prepend("(");
-  ret.add(")");
-  return ret;
-}
-
-//////////////////////////////////////////////////////////////////////////////
-//
-function sf_arithOp(arr) {
-  if (arr.length < 3) { synError("e0", arr); }
-  evalSexp(arr);
-
-  let op = tnode(),
-      ret= tnode();
-
-  op.add([" ", arr.shift(), " "]);
-  ret.add(arr);
-  ret.join(op);
-  ret.prepend("(");
-  ret.add(")");
-  return ret;
-}
-
-//////////////////////////////////////////////////////////////////////////////
-//
-function sf_logicalOp(arr) {
-  return sf_arithOp(arr);
-}
-
-//////////////////////////////////////////////////////////////////////////////
-//special forms
-//////////////////////////////////////////////////////////////////////////////
-
-function sf_repeat(form) {
-
-  if (form.length !== 3) {
-    synError("e0", form); }
-
-  evalSexp(form);
-  let ret = tnode(),
-      end= parseInt(form[1].name);
-  for (var i = 0; i < end; ++i) {
-    if (i !== 0) {
-      ret.add(",");
-    }
-    ret.add(form[2]);
-  }
-  ret.prepend("[");
-  ret.add("]");
-  return ret;
-}
-
-//////////////////////////////////////////////////////////////////////////////
-//
-function sf_do(form) {
-
-  if (form.length < 2) { return ""; }
-
-  let end = form.length -1,
-      last = form[end],
-      p = pad(indent),
-      ret= tnode(),
-      e;
-
-  for (var i = 1; i < end; ++i) {
-    e=form[i];
-    ret.add([p, evalForm(e), ";\n"]);
-  }
-  e= isform(last) ? evalForm(last) : last;
-  ret.add([p, "return ", e, ";\n"]);
-  ret.prepend(p + "(function() {\n");
-  ret.add(p+"})()");
-  return ret;
-}
-
-//////////////////////////////////////////////////////////////////////////////
-//
-function sf_doto(form) {
-
-  if (form.length < 2) {
-    synError("e0", form); }
-
-  let ret= tnode(),
-      p = pad(indent),
-      p2 = pad(indent + indentSize),
-      p3 = pad(indent + indentSize * 2),
-      e, e1 = form[1];
-  e1= isform(e1) ? evalForm(e1) : e1;
-  ret.add([p2, "let ___x = ", e1, ";\n"]);
-  for (var i = 2; i < form.length; ++i) {
-    e=form[i];
-    e.splice(1,0, "___x");
-    ret.add([p3, evalForm(e), ";\n"]);
-  }
-  ret.add([p2, "return ___x;\n"]);
-  ret.prepend(p + "(function() {\n");
-  ret.add(p+"})()");
-  return ret;
-}
-
-//////////////////////////////////////////////////////////////////////////////
-//
-function sf_range(form) {
-
-  if (form.length < 2 || form.length > 4) {
-    synError("e0", form); }
-
-  evalSexp(form);
-  let ret = tnode(),
-      len= form.length,
-      start=0,
-      step=1,
-      end= parseInt(form[1].name);
-  if (len > 2) {
-    start= parseInt(form[1].name);
-    end= parseInt(form[2].name);
-  }
-  if (len > 3) {
-    step= parseInt(form[3].name);
-  }
-  for (var i = start; i < end; i = i + step) {
-    if (i !== start) {
-      ret.add(",");
-    }
-    ret.add(""+i);
-  }
-  ret.prepend("[");
-  ret.add("]");
-  return ret;
-}
-
-//////////////////////////////////////////////////////////////////////////////
-function sf_var(form, cmd) {
-
-  if (form.length < 3 ||
-      0 === (form.length % 2)) {
-    synError("e0", form); }
-
-  if (form.length > 3) {
-    indent += indentSize; }
-
-  evalSexp(form);
-  let ret = tnode();
-  for (var i = 1; i < form.length; i = i + 2) {
-    if (i > 1) {
-      ret.add(",\n" + pad(indent));
-    }
-    if (!testid(form[i])) { synError("e9", form); }
-    ret.add([form[i], " = ", form[i + 1]]);
-  }
-  ret.prepend(" ");
-  ret.prepend(cmd);
-  if (form.length > 3) {
-    indent -= indentSize; }
-  return ret;
-}
-
-//////////////////////////////////////////////////////////////////////////////
-//
-function sf_new(form) {
-  if (form.length < 2) { synError("e0", form); }
-  let ret = tnode();
-  ret.add(evalForm(form.slice(1)));
-  ret.prepend("new ");
-  return ret;
-}
-
-//////////////////////////////////////////////////////////////////////////////
-//
-function sf_throw(form) {
-  assertArgs(form, 2, "e0");
-  let ret = tnode();
-  ret.add(isform(form[1]) ? evalForm(form[1]) : form[1]);
-  //ret.prepend("(function(){ throw ");
-  //ret.add(";})()");
-  ret.prepend("throw ");
-  ret.add(";");
-  return ret;
-}
-
-function sf_while(form) {
-  let f1=form[1];
-  form.splice(0,2,tnodeChunk("do","do"));
-  return tnodeChunk(
-    ["while ",
-     isform(f1) ? evalForm(f1) : f1,
-     " {\n",
-     evalForm(form),
-     ";\n}\n"]);
-}
-
-function sf_x_opop(form, op) {
-  if (form.length !== 2) { synError("e0", form); }
-  return tnodeChunk([op,
-                     isform(form[1]) ? evalForm(form[1]) : form[1]]);
-}
-
-function sf_x_eq(form, op) {
-  if (form.length !== 3) { synError("e0", form); }
-  return tnodeChunk([form[1],
-                     " " + op + "= ",
-                     isform(form[2]) ? evalForm(form[2]) : form[2]]);
-}
-
-//////////////////////////////////////////////////////////////////////////////
-//
-function sf_set(form) {
-  if (form.length < 3 || form.length > 4) {
-    synError("e0", form); }
-  if (form.length === 4) {
-    if (isform(form[1])) { form[1]= evalForm(form[1]); }
-    if (isform(form[2])) { form[2]= evalForm(form[2]); }
-    form[1] = form[1] + "[" + form[2] + "]";
-    form[2] = form[3];
-  }
-  return tnodeChunk([form[1],
-                     " = ",
-                     isform(form[2]) ? evalForm(form[2]) : form[2]]);
-}
-
-//////////////////////////////////////////////////////////////////////////////
-//
-function sf_anonFunc(arr) {
-  if (arr.length < 2) { synError("e0", arr); }
-
-  if (! isform(arr[1])) {
-    synError("e0", arr);
-  }
-
-  let fArgs = arr[1],
-      fBody = arr.slice(2),
-      ret = tnodeChunk(fArgs);
-  ret.join(",");
-  ret.prepend("function (");
-  ret.add([") {\n",evalAST(fBody), pad(indent), "}"]);
-  return ret;
-}
-
-//////////////////////////////////////////////////////////////////////////////
-//
-function sf_func(arr, public) {
-
-  if (arr.length < 2) { synError("e0", arr); }
-
-  let ret, fName, fArgs, fBody;
-
-  if (!isform(arr[1]) && isform(arr[2])) {
-    fName = normalizeId(arr[1].name);
-    fArgs = arr[2];
-    fBody = arr.slice(3);
-  }
-  else { synError("e0", arr); }
-
-  ret = tnodeChunk(fArgs);
-  ret.join(",");
-  ret.prepend("function " + fName + "(");
-  ret.add([") {\n",evalAST(fBody), pad(indent), "}"]);
-  noSemiColon = true;
-  return ret;
-}
-
-//////////////////////////////////////////////////////////////////////////////
-//
-function sf_try(arr) {
-
-  let sz= arr.length,
-      t, f, c, ret,
-      ind = pad(indent);
-
-  if (sz < 2) { return ""; }
-
-  //look for finally
-  f=arr[sz-1];
-  if (isform(f) && f[0].name === "finally") {
-    f=arr.pop();
-    sz=arr.length;
-  } else { f=null; }
-  //look for catch
-  c= sz > 1 ? arr[sz-1] : null;
-  if (isform(c) && c[0].name === "catch") {
-    if (c.length < 2 || !isNode(c[1], c)) {
-      synError("e0", arr);
-    }
-    c=arr.pop();
-  } else { c=null; }
-
-  //try needs either a catch or finally or both
-  if (f === null && c === null) { synError("e0", arr); }
-
-  ret= tnodeChunk(["(function() {\n" + ind + "try {\n",
-                   evalAST(arr.slice(1)),
-                   "\n" + ind + "} "]);
-  if (c) {
-    t=c[1];
-    c.splice(0,2, tnodeChunk("do","do"));
-    ret.add(["catch (" + t + ") {\n",
-             "return ", evalForm(c), ";\n" + ind + "}\n"]);
-  }
-  if (f) {
-    f.splice(0,1, tnodeChunk("do","do"));
-    ret.add(["finally {\n",
-             evalForm(f), ";\n" + ind + "}\n"]);
-  }
-
-  ret.add(ind + "})()");
-  return ret;
-}
-
-//////////////////////////////////////////////////////////////////////////////
-//
-function sf_if(arr) {
-  if (arr.length < 3 || arr.length > 4)  {
-    synError("e0", arr); }
-  indent += indentSize;
-  evalSexp(arr);
-  try {
-    return tnodeChunk(["(",
-                       arr[1],
-                       " ?\n" + pad(indent),
-                       arr[2],
-                       " :\n" + pad(indent),
-                       (arr[3] || "undefined"), ")"]);
-  } finally {
-    indent -= indentSize;
-  }
-}
-
-//////////////////////////////////////////////////////////////////////////////
-//
-function sf_get(arr) {
-  assertArgs(arr, 3, "e0");
-  evalSexp(arr);
-  return tnodeChunk([arr[1], "[", arr[2], "]"]);
-}
-
-//////////////////////////////////////////////////////////////////////////////
-//
-function sf_str(arr) {
-  if (arr.length < 2) { synError("e0", arr); }
-  evalSexp(arr);
-  let ret = tnode();
-  ret.add(arr.slice(1));
-  ret.join(",");
-  ret.prepend("[");
-  ret.add("].join('')");
-  return ret;
-}
-
-//////////////////////////////////////////////////////////////////////////////
-//
-function sf_array(arr) {
-  let ret = tnode(),
-      p= pad(indent),
-      epilog="\n" + p + "]";
-
-  if (arr.length === 0) {
-    ret.add("[]");
-    return ret;
-  }
-
-  if (arr._array === true) {} else {
-    arr.splice(0,1);
-  }
-
-  try {
-    indent += indentSize;
-    evalSexp(arr);
-    p= pad(indent);
-    ret.add("[\n" + p);
-    for (var i = 0; i < arr.length; ++i) {
-      if (i > 0) {
-        ret.add(",\n" + p);
-      }
-      ret.add(arr[i]);
-    }
-    ret.add(epilog);
-    return ret;
-  } finally {
-    indent -= indentSize;
-  }
-}
-
-//////////////////////////////////////////////////////////////////////////////
-//
-function sf_object(arr) {
-  let ret = tnode(),
-      p= pad(indent),
-      epilog= "\n" + p + "}";
-
-  if (arr.length === 0) {
-    ret.add("{}");
-    return ret;
-  }
-
-  if (arr._object === true) {} else {
-    arr.splice(0,1);
-  }
-
-  try {
-    indent += indentSize;
-    evalSexp(arr);
-    p=pad(indent);
-    ret.add("{\n" + p);
-    for (var i = 0; i < arr.length; i = i + 2) {
-      if (i > 0) {
-        ret.add(",\n" + p); }
-      ret.add([arr[i], ": ", arr[i + 1]]);
-    }
-    ret.add(epilog);
-    return ret;
-  } finally {
-    indent -= indentSize;
-  }
-}
-
-//////////////////////////////////////////////////////////////////////////////
-//
-var includeFile = (function () {
-  let icache = [];
-  return function(fname) {
-    if (icache.indexOf(fname) !== -1) { return ""; }
-    icache.push(fname);
-    return evalAST(toAST(fs.readFileSync(fname), fname));
-  };
-})();
-
-//////////////////////////////////////////////////////////////////////////////
-//
-function sf_include(arr) {
-
-  assertArgs(arr, 2, "e0");
-
-  let found=false,
-      fname = arr[1].name;
-
-  if (isStr(fname)) {
-    fname = fname.replace(/["']/g, ""); }
-  indent -= indentSize;
-
-  include_dirs.
-    concat([path.dirname(arr._filename)]).
-    forEach(function(pfx) {
-      if (found) { return; }
-      try {
-        fname = fs.realpathSync(pfx + '/' +fname);
-        found = true;
-      } catch (err) {}
-    });
-
-  if (!found) { synError("e11", arr); }
-
-  try {
-    return includeFile(fname);
-  } finally {
-    indent += indentSize;
-  }
-}
-
-//////////////////////////////////////////////////////////////////////////////
-//
-function sf_ns(arr) {
-  return "";
-}
-
-//////////////////////////////////////////////////////////////////////////////
-//
-function sf_comment(arr) {
-  return "";
-}
-
-//////////////////////////////////////////////////////////////////////////////
-//
-function sf_floop(arr) {
-//(floop ((i 1) (< i (.-length arr)) (i (+ i 2)))
-
-  if (arr.length < 2) { synError("e0",arr); }
-
-  let c1,c2,c3,
-      c=arr[1],
-      ind= pad(indent),
-      ret=tnodeChunk("for (");
-
-  if (!isform(c) || c.length !== 3) { synError("e0",arr); }
-
-  c1=c[0];
-  c2=c[1];
-  c3=c[2];
-
-  indent += indentSize;
-
-  for (var i=0; i < c1.length; i=i+2) {
-    if (i==0) {ret.add("var "); }
-    if (i !== 0) { ret.add(","); }
-    ret.add([c1[i],
-             " = ",
-             isform(c1[i+1]) ? evalForm(c1[i+1]) : c1[i+1]]);
-  }
-  ret.add("; ");
-  ret.add(evalForm(c2));
-  ret.add("; ");
-  for (var i=0; i < c3.length; i=i+2) {
-    if (i !== 0) { ret.add(","); }
-    ret.add([c3[i],
-            " = ",
-            isform(c3[i+1]) ? evalForm(c3[i+1]) : c3[i+1]]);
-  }
-  ret.add(") {\n");
-  if (arr.length > 2) {
-    arr.splice(0,2, tnodeChunk("do","do"));
-    ret.add([ind, pad(indentSize), evalForm(arr), ";"]);
-  }
-  ret.add("\n" + ind + "}\n");
-  indent -= indentSize;
-  return ret;
-}
-
-//////////////////////////////////////////////////////////////////////////////
-//
-function sf_jscode(arr) {
-  assertArgs(arr, 2, "e0");
-  noSemiColon = true;
-  arr[1].replaceRight(/"/g, "");
-  return arr[1];
-}
-
-//////////////////////////////////////////////////////////////////////////////
-//
-function sf_macro(arr) {
-  assertArgs(arr, 4, "e0");
-  assertNode(arr[1],arr);
-  assertForm(arr[2]);
-  let a2=arr[2],
-      a3=arr[3];
-
-  for (var i=0; i < a2.length; ++i) {
-    if (a2[i].name === VARGS &&
-        (i+1) !== a2.length) {
-      synError("e15", arr, arr[1].name);
-    }
-  }
-
-  MACROS_MAP[arr[1].name] = {args: a2, code: a3};
-  return "";
-}
-
-//////////////////////////////////////////////////////////////////////////////
-//
-function sf_not(arr) {
-  assertArgs(arr, 2, "e0");
-  evalSexp(arr);
-  return "(!" + arr[1] + ")";
-}
-
-
-
-//////////////////////////////////////////////////////////////////////////////
-//
-function dbg(obj, hint) {
-  if (isarray(obj)) {
-    hint= hint || "block";
-    console.log("<"+hint+">");
-    for (var i=0; i < obj.length; ++i) {
-      dbg(obj[i]);
-    }
-    console.log("</"+hint+">");
-  } else if (isNode(obj)) {
-    console.log("<node>");
-    console.log(obj);
-    dbg(obj.children,"subs");
-    console.log("</node>");
-  } else {
-    console.log(obj);
-  }
-}
-
-//////////////////////////////////////////////////////////////////////////////
-//
-function dbgAST(codeStr, fname) {
-  let tree= toAST(codeStr, fname);
-  dbg(tree, "tree");
-}
-
-//////////////////////////////////////////////////////////////////////////////
-//
-function compileCode(codeStr, fname, withSrcMap, a_include_dirs) {
-
-  if (a_include_dirs) { include_dirs = a_include_dirs; }
-  indent = -indentSize;
-
-  let outNode = evalAST(toAST(codeStr, fname));
-  outNode.prepend(banner);
-
-  if (withSrcMap) {
-    let outFile = path.basename(fname, ".lisp") + ".js",
-        srcMap = outFile + ".map",
-        output = outNode.toStringWithSourceMap( { file: outFile });
-
-    fs.writeFileSync(srcMap, output.map);
-    return output.code +
-           "\n//# sourceMappingURL=" +
-           path.relative(path.dirname(fname), srcMap);
-  } else {
-    return outNode.toString();
-  }
-}
-
-//////////////////////////////////////////////////////////////////////////////
-//
-exports.transpileWithSrcMap=function(code,file,incDirs) {
-  return compileCode(code,file,true,incDirs);
-};
-exports.transpile=function(code,file,incDirs) {
-  return compileCode(code,file,false,incDirs);
-};
-exports.version = version;
-exports.dbgAST=dbgAST;
-exports.parseWithSourceMap = function(codeStr, fname) {
-  let outNode = evalAST(toAST(codeStr, fname));
-  outNode.prepend(banner);
-  return outNode.toStringWithSourceMap();
-};
-
-//////////////////////////////////////////////////////////////////////////////
-//EOF
-
-
-
+           (= ename "#head")
+           (if-not (list? frag)
+            (syntax! :e13 data cmd)
+            (if (not-empty frag) (1st frag) undefined))
+           (= ename "#tail")
+           (if-not (list? frag)
+             (syntax! :e13 data cmd)
+             (if (not-empty frag) (last frag) undefined))
+           (.startsWith ename "#evens")
+           (do-with [r []]
+             (for ((i 1) (< i (alen frag)) (i (+ i 2)))
+               (conj!! r (nth frag i)))
+             (if (.endsWith ename "*") (set! r "___split" true)))
+           (.startsWith ename "#odds")
+           (do-with [r []]
+             (for ((i 0) (< i (alen frag)) (i (+ i 2)))
+               (conj!! r (nth frag i)))
+             (if (.endsWith ename "*") (set! r "___split" true)))
+           (.startsWith ename "#slice@")
+           (let [a nil g nil]
+             (if-not (list? frag) (syntax! :e13 data cmd))
+             (set! g (REGEX.macroGet.exec ename))
+             (1st (.splice frag (dec (nth g 1)) 1)))
+           (= ename "#if")
+           (do
+             (if-not (list? frag) (syntax! :e13 data cmd))
+             (cond
+               (not-empty frag) (expand (nth source 2))
+               (nth source 3) (expand (nth source 3))
+               :else undefined))
+           :else
+           (do
+             (for ((i 0) (< i (alen source)) (i (+ i 1)))
+               (if (list? (nth source i))
+                 (let [c (expand (nth source i))]
+                   (if (and (list? c)
+                            (true? (get c "___split")))
+                     (for ((i 0) (< i (alen c)) (i (+ i 1)))
+                       (conj!! ret (nth c i)))
+                     (conj!! ret c)))
+                 (let [token (nth source i)
+                       tn (.-name token)
+                       bak token
+                       atSign? false]
+                   (when (.includes tn "@")
+                     (set! atSign? true)
+                     (set! bak
+                           (tnode (.-line token)
+                                  (.-column token)
+                                  (.-source token)
+                                  (.replace tn "@" "")
+                                  (.replace tn "@" ""))))
+                   (if (get frags (.-name bak))
+                     (let [repl (get frags (.-name bak))]
+                       (if (or atSign?
+                               (= (.-name bak) TILDA-VARGS))
+                         (for ((j 0) (< j (alen repl)) (j (+ j 1)))
+                           (conj!! ret (nth repl j)))
+                         (conj!! ret repl)))
+                     (conj!! ret token)))))
+             ret))))
+
+  (expand code))
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;
+(defn- sf-compOp [expr]
+  (if (< (alen expr) 3) (syntax! :e0 expr))
+  (evalSubList expr)
+  ;; dont use === as it is a source node
+  (if (eq? (1st expr) "!=") (set! expr 0  "!=="))
+  (if (eq? (1st expr) "=") (set! expr 0 "==="))
+  (do-with [ret (tnode)]
+    (for ((i 0 op (.shift expr))
+          (< i (- (alen expr) 1)) (i (+ i 1)))
+      (.add ret (tnodeChunk [(nth expr i) " "
+                                          op
+                                          " "
+                                          (nth expr (inc i))])))
+    (.join ret " && ")
+    (.prepend ret "(")
+    (.add ret ")")))
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;
+(each ["!=" "==" "=" ">" ">=" "<" "<="]
+      (fn [k]
+          (set! SPEC-OPS k sf-compOp)))
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;
+(defn- sf-arithOp [expr]
+  (if (< (alen expr) 3) (syntax! :e0 expr))
+  (evalSubList expr)
+  (var op (tnode)
+       ret (tnode))
+  (.add op [" " (.shift expr) " "])
+  (.add ret expr)
+  (.join ret op)
+  (.prepend ret "(")
+  (.add ret ")")
+  ret)
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;
+(each ["+" "-" "*" "/" "%"]
+      (fn [k] (set! SPEC-OPS k sf-arithOp)))
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;
+(defn- sf-logicalOp [expr] (sf-arithOp expr))
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;
+(each ["||" "&&" "^" "|" "&" ">>>" ">>" "<<"]
+      (fn [k] (set! SPEC-OPS k sf-logicalOp)))
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;
+(defn- sf-repeat [expr]
+  (if (not= (alen expr) 3) (syntax! :e0 expr))
+  (evalSubList expr)
+  (do-with [ret (tnode)]
+    (for ((i 0
+           end (parseInt (.-name (nth expr 1))))
+          (< i end)
+          (i (+ i 1)))
+      (if (not= i 0) (.add ret ","))
+      (.add ret (nth expr 2)))
+    (.prepend ret "[")
+    (.add ret "]")))
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;
+(set! SPEC-OPS "repeat-n" sf-repeat)
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;
+(defn- sf-do [expr]
+  (do-with [ret (tnode)]
+    (var end (eindex expr)
+         e nil
+         p (pad indentWidth))
+    (for ((i 1) (< i end) (i (+ i 1)))
+      (set! e (nth expr i))
+      (.add ret [p (evalList e) ";\n"]))
+    (when (> end 0)
+      (set! e (eval?? (last expr)))
+      (.add ret [p "return " e ";\n"])
+      (.prepend ret (str p "(function() {\n"))
+      (.add ret (str p "})()")))))
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;
+(set! SPEC-OPS "do" sf-do)
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;
+(defn- sf-doto [expr]
+
+  (if (< (alen expr) 2) (syntax! :e0 expr))
+
+  (let [ret (tnode)
+        p (pad indentWidth)
+        p2 (pad (+ indentWidth indentSize))
+        p3 (pad (+ indentWidth (* 2 indentSize)))
+        e nil
+        e1 (eval?? (nth expr 1))]
+    (.add ret [p2 "let ___x = " e1 ";\n"])
+    (for ((i 2) (< i (alen expr)) (i (+ i 1)))
+      (set! e (nth expr i))
+      (.splice e 1 0 "___x")
+      (.add ret [p3 (evalList e) ";\n"]))
+    (.add ret [p2 "return ___x;\n"])
+    (.prepend ret (str p "(function() {\n"))
+    (.add ret (str p "})()"))
+    ret))
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;
+(set! SPEC-OPS "doto" s-doto)
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;
+(defn- sf-range [expr]
+
+  (if (or (< (alen expr) 2 )
+          (> (alen expr) 4)) (syntax! :e0 expr))
+  (evalSubList expr)
+  (var len (alen expr)
+       start 0
+       step 1
+       end (parseInt (.-name (nth expr 1))))
+  (do-with [ret (tnode)]
+    (when (> len 2)
+      (set! start (parseInt (.-name (nth expr 1))))
+      (set! end (parseInt (.-name (nth expr 2)))))
+    (if (> len 3)
+      (set! step (parseInt (.-name (nth expr 3)))))
+    (for ((i start) (< i end) (i (+ i step)))
+      (if (not= i start) (.add ret ","))
+      (.add ret (str "" i)))
+    (.prepend ret "[")
+    (.add ret "]")))
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;
+(set! SPEC-OPS "range" sf-range)
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;
+(defn- sf-var [expr cmd]
+
+  (if (or (< (alen expr) 3)
+          (= 0 (mod (alen expr) 2))) (syntax! :e0 expr))
+
+  (if (> (alen expr) 3)
+    (inc! indentWidth indentSize))
+
+  (evalSubList expr)
+  (do-with [ret (tnode)]
+    (for ((i 1) (< i (alen expr)) (i (+ i 2)))
+      (if (> i 1)
+        (.add ret (str ",\n" (pad indentWidth))))
+      (if-not (testid (nth expr i)) (syntax! :e9 expr))
+      (.add ret [(nth expr i) " = " (nth expr (inc i))]))
+    (.prepend ret " ")
+    (.prepend ret cmd)
+    (if (> (alen expr) 3)
+      (dec! indentWidth indentSize))))
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;
+(set! SPEC-OPS "var" (fn [x] (sf-var x "let")))
+(set! SPEC-OPS "def" (fn [x] (sf-var x "var")))
+(set! SPEC-OPS "def-" (get SPEC-OPS "def"))
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;
+(defn- sf-new [expr]
+  (if (< (alen expr) 2) (syntax! :e0 expr))
+  (do-with [ret (tnode)]
+    (.add ret (evalList (.slice expr 1)))
+    (.prepend ret "new ")))
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;
+(set! SPEC-OPS "new" sf-new)
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;
+(defn- sf-throw [expr]
+  (assertArgs expr 2 :e0)
+  (do-with [ret (tnode)]
+    (.add ret (eval?? (nth expr 1)))
+    (.prepend ret "throw ")
+    (.add ret ";")))
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;
+(set! SPEC-OPS "throw" sf-throw)
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;
+(defn- sf-while [expr]
+  (var f1 (nth expr 1))
+  (.splice expr 0 2 (tnodeChunk "do" "do"))
+  (tnodeChunk ["while "
+               (eval?? f1)
+               " {\n" (evalList expr) ";\n}\n"]))
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;
+(set! SPEC-OPS "while" sf-while)
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;
+(defn- sf-x-opop [expr op]
+  (if (not= (alen expr) 2) (syntax! :e0 expr))
+  (tnodeChunk [op (eval?? (nth expr 1))]))
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;
+(set! SPEC-OPS "dec!!" (fn [x] (sf-x-opop x "--")))
+(set! SPEC-OPS "inc!!" (fn [x] (sf-x-opop x "++")))
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;
+(defn- sf-x-eq [expr op]
+  (if (not= (alen expr) 3) (syntax! :e0 expr))
+  (tnodeChunk [(nth expr 1)
+               (str " " op "= ")
+               (eval?? (nth expr 2))]))
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;
+(set! SPEC-OPS "dec!" (fn [x] (sf-x-eq x "-")))
+(set! SPEC-OPS "inc!" (fn [x] (sf-x-eq x "+")))
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;
+(defn- sf-set [expr]
+  (if (or (< (alen expr) 3)
+          (> (alen expr) 4)) (syntax! :e0 expr))
+  (when (= (alen expr) 4)
+    (if (list? (nth expr 1))
+      (set! expr 1 (evalList (nth expr 1))))
+    (if (list? (nth expr 2))
+      (set! expr 2 (evalList (nth expr 2))))
+    (set! expr 1 (str (nth expr 1) "[" (nth expr 2) "]"))
+    (set! expr 2 (nth expr 3)))
+  (tnodeChunk [(nth expr 1)
+               " = "
+               (eval?? (nth expr 2))]))
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;
+(set! SPEC-OPS "set!" sf-set)
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;
+(defn- sf-anonFunc [expr]
+  (if (< (alen expr) 2) (syntax! :e0 expr))
+  (if-not (list? (nth expr 1)) (syntax! :e0 expr))
+  (var fArgs (nth expr 1)
+       fBody (.slice expr 2))
+  (do-with [ret (tnodeChunk fArgs)]
+    (.join ret ",")
+    (.prepend ret "function (")
+    (.add ret [") {\n"
+               (parseTree fBody)
+               (pad indentWidth) "}"])))
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;
+(set! SPEC-OPS "fn" sf-anonFunc)
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;
+(defn- sf-func [expr public?]
+  (if (< (alen expr) 2) (syntax! :e0 expr))
+  (var fName nil
+       fArgs nil fBody nil)
+  (do-with [ret nil]
+    (if (and (not (list? (nth expr 1)))
+             (list? (nth expr 2)))
+      (do
+        (set! fName (normalizeId (.-name (nth expr 1))))
+        (set! fArgs (nth expr 2))
+        (set! fBody (.slice expr 3)))
+      (syntax! :e0 expr))
+    (set! ret (tnodeChunk fArgs))
+    (.join ret ",")
+    (.prepend ret (str "function " fName "("))
+    (.add ret [") {\n"
+               (parseTree fBody)
+               (pad indentWidth) "}"])
+    (set! noSemi? true)))
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;
+(set! SPEC-OPS "defn-" (fn [x] (sf-func x false)))
+(set! SPEC-OPS "defn" (fn [x] (sf-func x true)))
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;
+(defn- sf-try [expr]
+  (var sz (alen expr)
+       t nil
+       f nil
+       c nil
+       ind (pad indentWidth))
+  ;;look for finally
+  (set! f (last expr))
+  (if (and (list? f)
+           (= (.-name (1st f)) "finally"))
+    (do
+      (set! f (.pop expr))
+      (set! sz (alen expr)))
+    (set! f nil))
+  ;;look for catch
+  (set! c (if (> sz 1) (nth expr (- sz 1)) nil))
+  (if (and (list? c)
+           (= (.-name (1st c)) "catch"))
+    (do
+      (if (or (< (alen c) 2)
+              (not (node? (nth c 1)))) (syntax! :e0 expr))
+      (set! c (.pop expr)))
+    (set! c nil))
+  ;;try needs either a catch or finally or both
+  (if (and (nil? f)
+           (nil? c)) (syntax! :e0 expr))
+  (do-with [ret (tnodeChunk
+                  [(str "(function() {\n"
+                        ind "try {\n")
+                   (parseTree (.slice expr 1))
+                   (str "\n" ind "} ") ])]
+    (when c
+      (set! t (nth c 1))
+      (.splice c 0 2 (tnodeChunk "do" "do"))
+      (.add ret [(str "catch (" t ") {\n")
+                 "return "
+                 (evalList c) (str ";\n" ind "}\n")]))
+    (when f
+      (.splice f 0 1 (tnodeChunk "do" "do"))
+      (.add ret ["finally {\n"
+                 (evalList f)
+                 (str ";\n" ind "}\n") ]))
+    (.add ret (str ind "})()"))))
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;
+(set! SPEC-OPS "try" sf-try)
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;
+(defn- sf-if [expr]
+  (if (or (< (alen expr) 3)
+          (> (alen expr) 4)) (syntax! :e0 expr))
+  (inc! indentWidth indentSize)
+  (evalSubList expr)
+  (try
+    (tnodeChunk ["("
+                 (nth expr 1)
+                 (str " ?\n" (pad indentWidth))
+                 (nth expr 2)
+                 (str " :\n" (pad indentWidth))
+                 (or (nth expr 3) "undefined") ")"])
+    (finally
+      (dec! indentWidth indentSize))))
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;
+(set! SPEC-OPS "if" sf-if)
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;
+(defn- sf-get [expr]
+  (assertArgs expr 3 :e0)
+  (evalSubList expr)
+  (tnodeChunk [(nth expr 1) "[" (nth expr 2) "]"]))
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;
+(set! SPEC-OPS "get" sf-get)
+(set! SPEC-OPS "aget" (get SPEC-OPS "get"))
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;
+(defn- sf-str [expr]
+  (if (< (alen expr) 2) (syntax! :e0 expr))
+  (evalSubList expr)
+  (do-with [ret (tnode)]
+    (.add ret (.slice expr 1))
+    (.join ret ",")
+    (.prepend ret "[")
+    (.add ret "].join('')")))
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;
+(set! SPEC-OPS "str" sf-str)
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;
+(defn- sf-array [expr]
+  (var p (pad indentWidth)
+       epilog (str "\n" p "]"))
+  (do-with [ret (tnode)]
+    (if (empty? expr)
+      (.add ret "[]")
+      (try
+        (if-not (true? (get expr "_array"))
+          (.splice expr 0 1))
+        (inc! indentWidth indentSize)
+        (evalSubList expr)
+        (set! p (pad indentWidth))
+        (.add ret (str "[\n" p))
+        (for ((i 0) (< i (alen expr)) (i (+ i 1)))
+          (if (> i 0)
+            (.add ret (str ",\n" p)))
+          (.add ret (nth expr i)))
+        (.add ret epilog)
+        (finally
+          (dec! indentWidth indentSize))))))
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;
+(set! SPEC-OPS "[" sf-array)
+(set! SPEC-OPS "vec" (get SPEC-OPS "["))
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;
+(defn- sf-object [expr]
+  (var p (pad indentWidth)
+       epilog (str "\n" p "}"))
+  (do-with [ret (tnode)]
+    (if (empty? expr)
+      (.add ret "{}")
+      (try
+        (if-not (true? (get expr "_object"))
+          (.splice expr 0 1))
+        (inc! indentWidth indentSize)
+        (evalSubList expr)
+        (set! p (pad indentWidth))
+        (.add ret (str "{\n" p))
+        (for ((i 0) (< i (alen expr)) (i (+ i 2)))
+          (if (> i 0)
+            (.add ret (str ",\n" p)))
+          (.add ret [(nth expr i) ": " (nth expr (inc i))]))
+        (.add ret epilog)
+        (finally
+          (dec! indentWidth indentSize))))))
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;
+(set! SPEC-OPS "{" sf-object)
+(set! SPEC-OPS "hash-map" (get SPEC-OPS "{"))
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;
+(def- includeFile
+  ((# (var icache [])
+      (fn [fname]
+        (if (not= (.indexOf icache fname) -1)
+          ""
+          (do (.push icache fname)
+              (processTree (toASTree (.readFileSync fs fname)
+                                     fname))))))))
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;
+(defn- sf-include [expr]
+
+  (assertArgs expr 2 :e0)
+
+  (var found false
+       fname (.-name (nth expr 1)))
+
+  (if (string? fname)
+    (set! fname (.replace fname
+                          (new RegExp "[\"']", "g") "")))
+
+  (dec! indentWidth indentSize)
+
+  (each (.concat includePaths
+                 [ (.dirname path (get expr "_filename")) ])
+        (fn [pfx]
+          (try
+            (when-not found
+              (set! fname (.realpathSync fs (str pfx "/" fname)))
+              (set! found true))
+            (catch err nil))))
+
+  (if-not found (syntax! :e11 expr))
+  (try
+    (includeFile fname)
+    (finally
+      (inc! indentWidth indentSize))))
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;
+(set! SPEC-OPS "include" sf-include)
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;
+(defn- sf-ns [expr] "")
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;
+(set! SPEC-OPS "ns" sf-ns)
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;
+(defn- sf-comment [expr] "")
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;
+(set! SPEC-OPS "comment" sf-comment)
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;
+(defn- sf-floop [expr]
+
+  (if (< (alen expr) 2) (syntax! :e0 expr))
+
+  (var c1 nil c2 nil c3 nil
+       c (nth expr 1)
+       ind (pad indentWidth))
+
+  (do-with [ret (tnodeChunk "for (")]
+    (if (or (not (list? c))
+            (not= (alen c) 3)) (syntax! :e0 expr))
+    (set! c1 (1st c))
+    (set! c2 (nth c 1))
+    (set! c3 (nth c 2))
+    (inc! indentWidth indentSize)
+    (for ((i 0) (< i (alen c1)) (i (+ i 2)))
+      (if (= i 0) (.add ret "var "))
+      (if (not= i 0) (.add ret ","))
+      (.add ret [(nth c1 i)
+                 " = "
+                 (eval?? (nth c1 (inc i))) ]))
+    (.add ret "; ")
+    (.add ret (evalList c2))
+    (.add ret "; ")
+    (for ((i 0) (< i (alen c3)) (i (+ i 2)))
+      (if (not= i 0) (.add ret ","))
+      (.add ret [(nth c3 i)
+                 " = "
+                 (eval?? (nth c3 (inc i)))] ))
+    (.add ret ") {\n")
+    (when (> (alen expr) 2)
+      (.splice expr 0 2 (tnodeChunk "do" "do"))
+      (.add ret [ind (pad indentSize) (evalList expr) ";"]))
+    (.add ret (str "\n" ind "}\n"))
+    (dec! indentWidth indentSize)))
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;
+(set! SPEC-OPS "for" sf-floop)
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;
+(defn- sf-jscode [expr]
+  (assertArgs expr 2 :e0)
+  (set! noSemi? true)
+  (.replaceRight (nth expr 1) (new RegExp "\"" "g") "")
+  (nth expr 1))
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;
+(set! SPEC-OPS "js#" sf-jscode)
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;
+(defn- sf-macro [expr]
+  (assertArgs expr  4 :e0)
+  (var a2 (nth expr 2)
+       a3 (nth expr 3)
+       cmd (.-name (nth expr 1)))
+  (do-with [ret ""]
+    (for ((i 0) (< i (alen a2)) (i (+ i 1)))
+      (if (and (= (.-name (nth a2 i)) VARGS)
+               (not= (+ i 1) (alen a2)))
+        (syntax! :e15 expr cmd)))
+    (set! MACROS-MAP cmd {args a2 code a3 name cmd})))
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;
+(set! SPEC-OPS "defmacro" sf-macro)
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;
+(defn- sf-not [expr]
+  (assertArgs expr 2 :e0)
+  (evalSubList expr)
+  (str "(!" (nth expr 1) ")"))
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;
+(set! SPEC-OPS "!" sf-not)
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;
+(defn- dbg [obj hint]
+  (cond
+    (list? obj)
+    (do
+      (set! hint (or hint "block"))
+      (console.log (str "<" hint ">"))
+      (for ((i 0) (< i (alen obj)) (i (+ i 1)))
+        (dbg (nth obj i)))
+      (console.log (str "</" hint ">")))
+    (node? obj)
+    (do
+      (console.log "<node>")
+      (console.log obj)
+      (dbg (.-children obj) "subs")
+      (console.log "</node>"))
+    :else
+    (console.log obj)))
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;
+(defn- dbgAST [codeStr fname]
+  (dbg (toAST codeStr fname) "tree"))
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;
+(defn- compileCode [codeStr fname withSrcMap? incPaths]
+
+  (if (array? incPaths)
+    (set! includePaths incPaths))
+  (set! indentWidth -indentSize)
+
+  (var outNode (parseTree (toAST codeStr fname)))
+  (.prepend outNode banner)
+
+  (if withSrcMap?
+    (let [outFile (str (.basename path fname ".lisp") ".js")
+          srcMap  (str outFile ".map")
+          output (.toStringWithSourceMap outNode
+                                         { file outFile })]
+      (.writeFileSync fs srcMap (.-map output))
+      (str (.-code output)
+           "\n//# sourceMappingURL="
+           (.relative path (.dirname path fname) srcMap))
+    (.toString outNode))))
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;
+
+(set! exports
+      "transpileWithSrcMap"
+      (fn [code file incDirs]
+        (compileCode code file true incDirs)))
+
+(set! exports
+      "transpile"
+      (fn [code file incDirs]
+        (compileCode code file false incDirs)))
+
+(set! exports "version" version)
+
+(set! exports "dbgAST" dbgAST)
+
+(set! exports "parseWithSourceMap"
+      (fn [codeStr fname]
+        (var outNode (processTree (toAST codeStr fname)))
+        (.prepend outNode banner)
+        (.toStringWithSourceMap outNode)))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;EOF
