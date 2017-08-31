@@ -36,6 +36,10 @@
     id (new RegExp "^[a-zA-Z_$][?\\-*!0-9a-zA-Z_$]*$")
     id2 (new RegExp "^[*$][?\\-*!0-9a-zA-Z_$]+$")
     func (new RegExp "^function\\b")
+    query (new RegExp "\\?" "g")
+    bang (new RegExp "!" "g")
+    dash (new RegExp "-" "g")
+    star (new RegExp "\\*" "g")
     wspace (new RegExp "\\s") })
 
 (def- MACROS_MAP {})
@@ -61,556 +65,262 @@
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;
-(defn- conj!! (list obj)
-  (if obj (.push list obj)) list)
+(defn- eval?? [x]
+  (if (list? x) (evalList ~x) ~x))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;
-(defn- testid (name)
+(defn- conj!! [tree obj]
+  (if obj (.push tree obj)) tree)
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;
+(defn- testid [name]
   (or (REGEX.id.test name) (REGEX.id2.test name)))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;
 ;;(if (typeof window === "undefined") {
 ;;path = require("path"); fs = require("fs"); }
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;
+(defn- normalizeId [name]
+  (var pfx "")
+  (if (and (string? name)
+           (= '-' (.charAt name 0)))
+    (set! pfx "-")
+    (set! name (.slice name 1)))
+  (if (testid name)
+    (str pfx (-> (.replace name REGEX.query "_QUERY")
+                 (.replace REGEX.bang "_BANG")
+                 (.replace REGEX.dash "_")
+                 (.replace REGEX.star "_STAR")))
+    (if (= pfx "") name (str pfx name))))
 
-//////////////////////////////////////////////////////////////////////////////
-//
-function normalizeId(name) {
-  let pfx="";
-  if (name && name.charAt(0) === "-") {
-    pfx="-";
-    name=name.slice(1);
-  }
-  if (testid(name)) {
-    return pfx + name.replace(/\?/g, "_QUERY").
-                      replace(/!/g, "_BANG").
-                      replace(/-/g, "_").
-                      replace(/\*/g, "_STAR");
-  } else {
-    return pfx === "" ? name : pfx + name;;
-  }
-}
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;
+(defn- assert [cond msg]
+  (if-not cond (throw (new Error msg))))
 
-//////////////////////////////////////////////////////////////////////////////
-//
-function assert(cond, msg) {
-  if (! cond) { throw new Error(msg); }
-}
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;
+(defn- node? [obj tree]
+  (and (object? obj)
+       (true? (get obj "$$$isSourceNode$$$"))))
 
-//////////////////////////////////////////////////////////////////////////////
-//
-function whatis(obj) {
-  return Object.prototype.toString.call(obj);
-}
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;
+(defn- error! [e line file msg]
+  (throw
+    (new Error
+         (str (get ERRORS-MAP e)
+              (if msg (str " : " msg))
+              (if line (str "\nLine no " line))
+              (if file (str "\nFile " file))))))
 
-//////////////////////////////////////////////////////////////////////////////
-//
-function isObject(obj) {
-  return whatis(obj) === "[object Object]";
-}
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;
+(defn- syntax! [c arr cmd]
+  (error! c
+          (get arr "_line")
+          (get arr "_filename") cmd))
 
-//////////////////////////////////////////////////////////////////////////////
-//
-function isArray(obj) {
-  return whatis(obj) === "[object Array]";
-}
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;
+(defmacro assertArgs [arr cnt ecode]
+  (if (not= (alen ~arr) ~cnt) (syntax! ~ecode ~arr)))
 
-//////////////////////////////////////////////////////////////////////////////
-//
-function isStr(obj) {
-  return whatis(obj) === "[object String]";
-}
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;
+(defn- pad [z] (.repeat " " z))
 
-//////////////////////////////////////////////////////////////////////////////
-//
-function isUndef(obj) {
-  return whatis(obj) === "[object Undefined]";
-}
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;
+(defn- tnodeString []
+  (do-with [s ""]
+    (.walk this
+           (fn [chunk hint]
+             (if (and (= (.-name hint) chunk)
+                      (string? chunk))
+               (set! chunk (normalizeId chunk)))
+             (inc! s chunk)))))
 
-//////////////////////////////////////////////////////////////////////////////
-//
-function isNode(obj,tree) {
-  try {
-    if (obj === null) {
-      throw "poo";
-    }
-    return isObject(obj) && obj["$$$isSourceNode$$$"] === true;
-  } catch (e) {
-    console.log("DUDE");
-    console.log("tree = " + tree._line);
-    throw e;
-  }
-}
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;
+(defn- tnode [ln col src chunk name]
+  (do-with [n nil]
+    (if (not-empty arguments)
+      (set! n
+            (if name
+              (new TreeNode ln col src chunk name)
+              (new TreeNode ln col src chunk)))
+      (set! n (new TreeNode)))
+    (set! n toString tnodeString)))
 
-//////////////////////////////////////////////////////////////////////////////
-//
-function handleError(no, line, filename, extra) {
-  throw new Error(ERRORS_MAP[no] +
-                  ((extra) ? " : " + extra : "") +
-                  ((line) ? "\nLine no " + line : "") +
-                  ((filename) ? "\nFile " + filename : ""));
-}
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;
+(defn- tnodeChunk [chunk name]
+  (if name
+    (tnode nil nil nil chunk name)
+    (tnode nil nil nil chunk)))
 
-//////////////////////////////////////////////////////////////////////////////
-//
-function synError(c,arr,cmd) {
-  return handleError(c, arr._line, arr._filename,cmd);
-}
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;
+(defn- toASTree [code state]
+  (var state { pos 1
+               lineno 1
+               colno 1
+               tknCol 1})
+  (var codeStr (str "(" code ")"))
+  (do-with [ret (lexer codeStr state)]
+    (if (< (.-pos state) (alen codeStr)) (error! :e10))))
 
-//////////////////////////////////////////////////////////////////////////////
-//
-function assertArgs(arr, cnt, err) {
-  if (arr.length !== cnt) { synError(err, arr); }
-}
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;
+(defn- parseTree [root]
 
-//////////////////////////////////////////////////////////////////////////////
-//
-function assertForm(f) {
-  if (! isform(f)) {
-    console.log("expecting form, got: " + whatis(f));
-  }
-}
+  (var pstr "" len (alen root))
+  (inc! indentWidth indentSize)
+  (set! pstr (pad indentWidth))
 
-//////////////////////////////////////////////////////////////////////////////
-//
-function assertNode(n, tree) {
-  if (! isNode(n, tree)) {
-    console.log("expecting node, got: " + whatis(n));
-    if (isform(n)) {
-      console.log("expecting node, line: " + n._line);
-    }
-    assert(false, "source node expected");
-  }
-}
+  (do-with [ret (tnode)]
+    (each root
+          (fn [expr i tree]
+            (var e nil name "" tmp nil r "")
+            (if (list? expr)
+              (do
+                (set! e (1st expr))
+                (if (node? e)
+                  (set! name (.-name e)))
+                (set! tmp  (evalList expr))
+                (when (= name "include")
+                  (.add ret tmp)
+                  (set! tmp nil)))
+              (set! tmp expr))
+            (if (and (= i (dec len))
+                     indentWidth
+                     (not (REGEX.noret.test name)))
+              (set! r "return "))
+            (when tmp
+              (.add ret [ (str pstr r)
+                          tmp
+                          (if noSemi? "\n" ";\n") ])
+              (set! noSemi? false))))
+    (dec! indentWidth indentSize)))
 
-//////////////////////////////////////////////////////////////////////////////
-//
-function inst(obj) { return typeof obj; }
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;
+(defn- evalList [expr]
 
-//////////////////////////////////////////////////////////////////////////////
-//
-function isarray(a) { return Array.isArray(a); }
-function isform(a) { return Array.isArray(a); }
+  (var cmd "" tmp nil mc nil)
+  (var evslist
+       (# (evalSubList expr)
+          (var s nil
+               fName (1st expr))
+          (if-not fName
+            (syntax! :e1 expr ""))
+          (if (REGEX.fn.test fName)
+            (set! fName (tnodeChunk ["(" fName ")"])))
+          (tnodeChunk [fName "("
+                       (.join (tnodeChunk (.slice expr 1)) ",") ")"])))
 
-//////////////////////////////////////////////////////////////////////////////
-//
-function pad(z) { return " ".repeat(z); }
+  (cond
+    (true? (.-_object expr)) (set! cmd "{")
+    (true? (.-_array expr)) (set! cmd "[")
+    (and (not-empty expr)
+         (node? (1st expr)))
+    (do
+      (set! cmd (.-name (1st expr)))
+      (set! mc (get MACROS-MAP cmd))))
 
-//////////////////////////////////////////////////////////////////////////////
-//
-function tnodeString() {
-  let str = "";
-  this.walk(function (chunk,hint) {
-    if (hint.name === chunk && isStr(chunk)) {
-      chunk= normalizeId(chunk);
-    }
-    str += chunk;
-  });
-  return str;
-}
+  (cond
+    (some? mc)
+    (do
+      (set! tmp (evalMacro mc cmd expr))
+      (eval?? tmp))
+    (string? cmd)
+    (cond
+      (.startsWith cmd ".-")
+      (do-with [ret (tnode)]
+        (.add ret (eval?? (nth expr 1)))
+        (.prepend ret "(")
+        (.add ret [")[\"" (.slice cmd 2) "\"]"]))
+      (= (.charAt cmd 0) '.')
+      (do-with [ret (tnode)]
+        (.add ret (eval?? (nth expr 1)))
+        (.add ret [(1st expr) "("])
+        (for ((i 2) (< i (alen expr)) (i (+ 1 i)))
+          (if (not= i 2) (.add ret ","))
+          (.add ret (eval?? (nth expr i))))
+        (.add ret ")"))
+      (.hasOwnProperty SPEC-OPS cmd)
+      ((get SPEC-OPS cmd) expr)
+      :else
+      (evslist))
+    :else (evslist)))
 
-//////////////////////////////////////////////////////////////////////////////
-//
-function tnode(ln,col,fn,chunk,name) {
-  let n;
-  if (arguments.length > 0) {
-    n= name ? new TreeNode(ln, col, fn, chunk, name)
-            : new TreeNode(ln, col, fn, chunk);
-  } else {
-    n= new TreeNode();
-  }
-  n.toString= tnodeString;
-  return n;
-}
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;
+(defn- evalSubList [subs]
+  (each subs
+        (fn [part i t]
+          (if (list? part) (set! t i (evalList part))))))
 
-//////////////////////////////////////////////////////////////////////////////
-//
-function tnodeChunk(chunk,name) {
-  return name ? tnode(null,null,null,chunk,name)
-              :tnode(null,null,null,chunk);
-}
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;
+(defn- evalMacro [mc data]
+  (var args (get mc "args")
+       cmd (get mc "name")
+       code (get mc "code")
+       vargs false
+       tpos 0
+       i 0
+       frags {})
 
-//////////////////////////////////////////////////////////////////////////////
-//
-function toAST(codeStr, filename) {
-  let codeArray = Array.from("(" + codeStr + ")");
-  let jsArray = 0,
-      jsObject = 0,
-      pos = 1,
-      lineno = 1,
-      colno = 1,
-      tknCol = 1,
-      addToken = function(tree,token) {
-        if (token) {
-          if (":else" == token) { token="true";}
-          if ("nil" == token) { token="null";}
-          if (token.startsWith(":") &&
-              testid(token.substring(1))) {
-            token="\"" + token.substring(1) + "\"";
-          }
-          tree.push(tnode(lineno,
-                          tknCol - 1,
-                          filename, token, token));
-        }
-        return "";
-      },
-      parseError=function(c,tree) {
-        synError(c, tree);
-      };
-  let lexer = function(prevToken) {
-    let tree = [],
-        token = "",
-        c,
-        isArray=false,
-        isObject=false,
-        isEsc= false,
-        isStr = false,
-        isSQStr = false,
-        isRegex = false,
-        isComment = false,
-        isEndForm = false;
-    tree._filename = filename;
-    tree._line = lineno;
-    if (prevToken === "[") {
-      tree._array=true;
-    } else if (prevToken === "{") {
-      tree._object=true;
-    }
+  (for ((i 0) (< i (alen args)) (i (+ i 1)))
+    (set! tpos (+ i 1)) ;skip the cmd at 0
+    (if (= (.-name (nth args i)) VARGS)
+      (do
+        (set! frags TILDA-VARGS (.slice data tpos))
+        (set! vargs true))
+      (set! frags
+            (str TILDA (.-name (nth args i)))
+            (if (>= tpos (alen data))
+              (tnodeChunk "undefined") (nth data tpos)))))
 
-    while (pos < codeArray.length) {
-      c = codeArray[pos];
-      ++colno;
-      ++pos;
-      if (c === "\n") {
-        ++lineno;
-        gLINE=lineno;
-        colno = 1;
-        if (isComment) {
-          isComment = false; }
-      }
-      if (isComment) { continue; }
-      if (isEsc) {
-        isEsc= false; token += c; continue; }
-      // strings
-      if (c === '"') {
-        isStr = !isStr; token += c; continue; }
-      if (isStr) {
-        if (c === "\n") {
-          token += "\\n"; }
-        else {
-          if (c === "\\") { isEsc= true; }
-          token += c;
-        }
-        continue;
-      }
-      if (c === "'") {
-        isSQStr = !isSQStr;
-        token += c; continue; }
-      if (isSQStr) {
-        token += c; continue; }
-      // data types
-      if (c === "[") {
-        token=addToken(tree,token); // catch e.g. "blah["
-        tknCol = colno;
-        isArray=true;
-        tree.push(lexer("["));
-        continue;
-      }
-      if (c === "]") {
-        token=addToken(tree,token);
-        //token=addToken(tree,"]");
-        isArray = false;
-        isEndForm=true;
-        tknCol = colno;
-        break;
-      }
-      if (c === "{") {
-        token=addToken(tree,token);
-        tknCol = colno;
-        isObject=true;
-        tree.push(lexer("{"));
-        continue;
-      }
-      if (c === "}") {
-        token=addToken(tree,token);
-        //token=addToken(tree,"}");
-        isObject = false;
-        isEndForm=true;
-        tknCol = colno;
-        break;
-      }
-      if (c === ";") {
-        isComment = true; continue; }
-      // regex
-      // regex in function position with first char " " is a prob. Use \s instead.
-      if (c === "/"&&
-          !(tree.length === 0 &&
-            token.length === 0 &&
-            REGEX.wspace.test(codeArray[pos]))) {
-        isRegex = !isRegex;
-        token += c; continue; }
-      if (isRegex) {
-        if (c === "\\") {
-          isEsc= true; }
-        token += c; continue; }
-      if (c === "(") {
-        token=addToken(tree,token); // catch e.g. "blah("
-        tknCol = colno;
-        tree.push(lexer());
-        continue;
-      }
-      if (c === ")") {
-        isEndForm = true;
-        token=addToken(tree,token);
-        tknCol = colno;
-        break;
-      }
-      if (REGEX.wspace.test(c)) {
-        if (c === "\n") { --lineno; }
-        token=addToken(tree,token);
-        if (c === "\n") { ++lineno; }
-        tknCol = colno;
-        gLINE=lineno;
-        continue;
-      }
-      token += c;
-    }
-    if (isStr || isSQStr) { parseError("e3", tree);}
-    if (isRegex) { parseError("e14", tree); }
-    if (jsArray) { parseError("e5", tree); }
-    //if (jsObject > 0) { parseError("e7", tree); }
-    if (!isEndForm) { parseError("e8", tree); }
-    return tree;
-  },
-  ret = lexer();
-  return (pos < codeArray.length) ? handleError("e10") : ret;
-}
+  (if (and (not vargs)
+           (< (+ i 1) (alen data))) (syntax! :e16 tree cmd))
 
-//////////////////////////////////////////////////////////////////////////////
-// [expr,...] -> TreeNode
-function evalAST(astTree) {
-  let ret = tnode(),
-      pstr = "",
-      len = astTree.length;
+  (var expand
+       (fn [source]
+         (var ret [] ename "" s1name "")
+         (set! ret "_filename" (get data "_filename"))
+         (set! ret "_line" (get data "_line"))
+         (when (and (list? source)
+                    (> (alen source) 1))
+           (set! s1name (.-name (nth source 1)))
+           (set! frag (get frags (str TILDA s1name))))
+         (if (and (list? source)
+                  (not-empty source))
+           (set! ename (.-name (1st source))))
+         (cond
+           (true? (get source "_object"))
+           (set! ret "_object" true)
+           (true? (get source "_array"))
+           (set! ret "_array" true))
 
-  indent += indentSize;
-  pstr = pad(indent);
-
-  astTree.forEach(function(expr, i, tree) {
-    let name="", tmp = null, r = "";
-    if (isform(expr)) {
-      if (isNode(expr[0], expr)) {
-        name = expr[0].name;
-      }
-      tmp = evalForm(expr) ;
-      if (name === "include") {
-        ret.add(tmp);
-        tmp=null;
-      }
-    } else {
-      tmp = expr;
-    }
-    if (i === len - 1 &&
-        indent &&
-        !REGEX.noret.test(name)) {
-      r = "return ";
-    }
-    if (tmp) {
-      ret.add([pstr + r,
-               tmp, noSemiColon ? "\n" : ";\n"]);
-      noSemiColon = false;
-    }
-  });
-
-  indent -= indentSize;
-  return ret;
-}
-
-//////////////////////////////////////////////////////////////////////////////
-//
-function evalForm(form) {
-
-  let cmd = "",
-      mc=null;
-
-  if (form._array === true) { cmd="["; }
-  else if (form._object === true) { cmd="{"; }
-  else if (!form[0]) { return null; }
-  else if (isNode(form[0], form)) {
-    cmd=form[0].name;
-    mc= MACROS_MAP[cmd];
-  }
-
-  if (mc) {
-    let m = evalMacro(mc, cmd, form);
-    return isform(m) ? evalForm(m) : m;
-  }
-
-  if (isStr(cmd)) {
-    if (cmd.startsWith(".-")) {
-      let ret = tnode();
-      ret.add(isform(form[1])
-              ? evalForm(form[1]) : form[1]);
-      ret.prepend("(");
-      ret.add([")[\"", cmd.slice(2), "\"]"]);
-      return ret;
-    }
-    if (cmd.charAt(0) === ".") {
-      let ret = tnode();
-      ret.add(isform(form[1])
-              ? evalForm(form[1]) : form[1]);
-      ret.add([form[0], "("]);
-      for (var i=2; i < form.length; ++i) {
-        if (i !== 2) { ret.add(","); }
-        ret.add(isform(form[i])
-                ? evalForm(form[i]) : form[i]);
-      }
-      ret.add(")");
-      return ret;
-    }
-    switch (cmd) {
-      case "comment": return sf_comment(form);
-      case "repeat-n": return sf_repeat(form);
-      case "doto": return sf_doto(form);
-      case "do": return sf_do(form);
-      case "for": return sf_floop(form);
-      case "ns": return sf_ns(form);
-      case "range": return sf_range(form);
-      case "while": return sf_while(form);
-      case "var": return sf_var(form, "let");
-      case "def-":
-      case "def": return sf_var(form, "var");
-      case "new": return sf_new(form);
-      case "throw": return sf_throw(form);
-      case "set!": return sf_set(form);
-      case "dec!": return sf_x_eq(form, "-");
-      case "inc!": return sf_x_eq(form, "+");
-      case "dec!!": return sf_x_opop(form, "--");
-      case "inc!!": return sf_x_opop(form, "++");
-      case "aget":
-      case "get": return sf_get(form);
-      case "defn-": return sf_func(form, false);
-      case "defn": return sf_func(form, true);
-      case "fn": return sf_anonFunc(form);
-      case "try": return sf_try(form);
-      case "if": return sf_if(form);
-      case "str": return sf_str(form);
-      case "[":
-      case "vec": return sf_array(form);
-      case "{":
-      case "hash-map": return sf_object(form);
-      case "include": return sf_include(form);
-      case "js#": return sf_jscode(form);
-      case "defmacro": return sf_macro(form);
-      case "+":
-      case "-":
-      case "*":
-      case "/":
-      case "%":
-        return sf_arithOp(form);
-      break;
-      case "||":
-      case "&&":
-      case "^":
-      case "|":
-      case "&":
-      case ">>>":
-      case ">>":
-      case "<<":
-        return sf_logicalOp(form);
-      break;
-      case "!=":
-      case "==":
-      case "=":
-      case ">":
-      case ">=":
-      case "<":
-      case "<=":
-        return sf_compOp(form);
-      break;
-      case "!":
-        return sf_not(form);
-      break;
-    }
-  }
-
-  evalSexp(form);
-
-  let s,fName = form[0];
-  if (!fName) {
-    handleError(1, form._line);
-  }
-  if (REGEX.fn.test(fName)) {
-    fName = tnodeChunk(["(", fName, ")"]);
-  }
-
-  return tnodeChunk([fName, "(",
-                     tnodeChunk(form.slice(1)).join(","), ")"]);
-}
-
-//////////////////////////////////////////////////////////////////////////////
-//
-function evalSexp(sexp) {
-  sexp.forEach(function(part, i, t) {
-    if (isform(part)) { t[i] = evalForm(part); }
-  });
-}
-
-//////////////////////////////////////////////////////////////////////////////
-//
-function evalMacro(mc, cmd, tree) {
-  let args = mc["args"],
-      code = mc["code"],
-      vargs=false,
-      tpos, i, frags = {};
-
-  for (i = 0; i < args.length; ++i) {
-    tpos=i+1; // skip the cmd at 0
-    if (args[i].name === VARGS) {
-      frags[TILDA_VARGS] = tree.slice(tpos);
-      vargs=true;
-      break;
-    }
-    //if (tpos >= tree.length) { synError("e17", tree, cmd); }
-    frags[TILDA + args[i].name] =
-      (tpos >= tree.length) ? tnodeChunk("undefined") : tree[tpos];
-  }
-  if (!vargs && (i+1) < tree.length) {
-    synError("e16", tree, cmd);
-  }
-
-  // handle homoiconic expressions in macro
-  let expand = function(source) {
-    let ret= [],
-        ename = "";
-
-    ret._filename = tree._filename;
-    ret._line = tree._line;
-
-    if (source._array === true) {
-      ret._array=true;
-    }
-    else if (source._object === true) {
-      ret._object=true;
-    }
-    else
-    if (isNode(source[0], source)) {
-      ename=source[0].name;
-    }
+         (cond
+           (= ename "#<<")
+           (if-not (list? frag)
+             (syntax! :e13 data cmd)
+             (.shift frag))
 
     if (REGEX.macroOp.test(ename)) {
       let s1name= source[1].name,
           a, g,
           frag = frags[TILDA + s1name];
-      if (ename === "#<<") {
-        if (!isarray(frag)) {
-          synError("e13", tree, cmd);
-        }
-        return a = frag.shift();
-        //if (a) { return a; }
-        //synError("e12", tree, cmd);
-      }
+
+
       if (ename === "#head") {
         if (!isarray(frag)) {
           synError("e13", tree, cmd);
