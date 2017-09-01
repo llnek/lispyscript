@@ -318,6 +318,10 @@
 
 (defmacro conj [c a] (.concat ~c [ ~a ]))
 
+(defmacro not-empty [x] (if (and ~x (> (.-length ~x) 0)) ~x nil))
+(defmacro empty? [x] (if ~x (= 0 (.-length ~x)) false))
+(defmacro js-args? [] (> (.-length arguments) 0))
+
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;EOF
 
