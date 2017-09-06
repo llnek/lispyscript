@@ -8,7 +8,7 @@
 (set! exports.runrepl
   (#
     (var rl (readline.createInterface process.stdin process.stdout))
-    (rl.on 'line'
+    (rl.on "line"
       (fn (line)
         (try
           (var l (ls.transpile line))
@@ -17,11 +17,11 @@
             (console.log err)))
         (rl.setPrompt prefix prefix.length)
         (rl.prompt)))
-    (rl.on 'close'
+    (rl.on "close"
       (#
         (console.log "Bye!")
         (process.exit 0)))
-    (console.log (str prefix 'LispyScript REPL v' ls.version))
+    (console.log (str prefix "LispyScript REPL v" ls.version))
     (rl.setPrompt prefix prefix.length)
     (rl.prompt)))
 

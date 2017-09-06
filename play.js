@@ -7,7 +7,7 @@ let x = "asfsafaaaa\n     poo";
       return ((times > a) ?
                 (function() {
         (4 + 5);
-        console.log(["a=",a].join(''));
+        console.log(["a=",a].join(""));
         return recur((1 + a),times);
         })() :
         undefined);
@@ -48,7 +48,7 @@ let x = "asfsafaaaa\n     poo";
   return recur([],4);
 })();
 function pset_BANG(a_QUERY,b) {
-  return [a_QUERY,"5578787"].join('');
+  return [a_QUERY,"5578787"].join("");
 }
 (function() {
 let yy_QUERY = dfd_STAR(33),
