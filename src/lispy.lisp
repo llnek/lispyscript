@@ -85,7 +85,8 @@
         (var infile
           (if (1st opt.argv)
             ;; we require .lisp extension (our require extension depends on it!)
-            (if (and (= (.indexOf (1st opt.argv) ".lisp") -1)
+            (if (and (= (.indexOf (1st opt.argv) ".kirby") -1)
+                     (= (.indexOf (1st opt.argv) ".lisp") -1)
                      (= (.indexOf (1st opt.argv) ".js") -1))
               (error (new Error "Error: Input file must have extension '.lisp' or '.js'"))
               (1st opt.argv))
@@ -98,7 +99,10 @@
         (var cwd (process.cwd))
         (console.log "Watching" cwd "for .lisp file changes...")
         (watch.watchTree cwd
-          { filter (fn (f stat) (or (stat.isDirectory) (not= (f.indexOf ".lisp") -1)))
+          { filter (fn (f stat) 
+                       (or (stat.isDirectory) 
+                           (not= (f.indexOf ".kirby") -1)
+                           (not= (f.indexOf ".lisp") -1)))
             ignoreDotFiles true
             ignoreDirectoryPattern /node_modules/ }
           (fn (f curr prev)
@@ -124,7 +128,10 @@
   outfile
     (do-with (outfile (2nd opt.argv))
       (unless outfile
-        (set! outfile (infile.replace /\.lisp$/ ".js"))
+        (if (.endsWith infile ".kirby")
+          (set! outfile (infile.replace /\.kirby$/ ".js")))
+        (if (.endsWith infile ".lisp")
+          (set! outfile (infile.replace /\.lisp$/ ".js")))
         (if (= outfile infile)
           (error (new Error "Error: Input file must have extension '.lisp'"))))))
 
@@ -133,7 +140,7 @@
     (var wantMap (true? (get opt.options "map")))
     (var dbgAST (true? (get opt.options "tree")))
     (var dirs (get opt.options "include-dir"))
-    (if-not dbgAST
+    (when-not dbgAST
       (console.log
         (str "lispy v" ls.version ":  compiling: " infile " -> " outfile)))
     (var content (fs.readFileSync infile "utf8"))

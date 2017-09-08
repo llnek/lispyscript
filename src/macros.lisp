@@ -57,14 +57,14 @@
 (defmacro -- [x] (dec!! ~x))
 (defmacro ++ [x] (inc!! ~x))
 
-(defmacro unless [cond &args] (when (! ~cond) ~&args))
+(defmacro unless [cond &rest] (when (! ~cond) ~&rest))
 
-(defmacro when [cond &args] (if ~cond (do ~&args)))
+(defmacro when [cond &rest] (if ~cond (do ~&rest)))
 
-(defmacro cond [&args]
-  (if (#<< &args)
-    (#<< &args)
-    (#if &args (cond ~&args))))
+(defmacro cond [&rest]
+  (if (#<< &rest)
+    (#<< &rest)
+    (#if &rest (cond ~&rest))))
 
 (defmacro arrayInit [len obj]
   ((fn [z o]
@@ -76,21 +76,21 @@
     (do-with [ret []]
     (js# "for (var n=0;n<i;++n){let inn=[];for (var m=0;m<j;++m) {inn.push(o);} ret.push(inn);}"))) ~i ~j ~obj))
 
-(defmacro -> [func form &args]
-  (#if &args
-    (-> ((#<< form) ~func ~@form) ~&args)
+(defmacro -> [func form &rest]
+  (#if &rest
+    (-> ((#<< form) ~func ~@form) ~&rest)
     ((#<< form) ~func ~@form)))
 
-(defmacro each [arr &args] (.forEach ~arr ~&args))
+(defmacro each [arr &rest] (.forEach ~arr ~&rest))
 
-(defmacro reduce [arr &args] (.reduce ~arr ~&args))
+(defmacro reduce [arr &rest] (.reduce ~arr ~&rest))
 
-(defmacro eachKey [obj func &args]
+(defmacro eachKey [obj func &rest]
   ((fn [o f s]
     (var _k (Object.keys o))
     (each _k
       (fn [em]
-        (f.call s (get o em) em o)))) ~obj ~func ~&args))
+        (f.call s (get o em) em o)))) ~obj ~func ~&rest))
 
 (defmacro each2d [arr func]
   (each ~arr
@@ -99,21 +99,21 @@
         (fn [__e2 __j __a2]
           (~func __e2 __j __i __a2 __a1))))))
 
-(defmacro map [arr &args] (.map ~arr ~&args))
+(defmacro map [arr &rest] (.map ~arr ~&rest))
 
-(defmacro filter [&args]
-  (Array.prototype.filter.call ~&args))
+(defmacro filter [&rest]
+  (Array.prototype.filter.call ~&rest))
 
-(defmacro some? [&args]
-  (Array.prototype.some.call ~&args))
+(defmacro some? [&rest]
+  (Array.prototype.some.call ~&rest))
 
-(defmacro every? [&args]
-  (Array.prototype.every.call ~&args))
+(defmacro every? [&rest]
+  (Array.prototype.every.call ~&rest))
 
-(defmacro loop [bindings &args]
+(defmacro loop [bindings &rest]
   ((# (var recur nil
            __xs nil
-           __f (fn [ (#odds* bindings) ] ~&args)
+           __f (fn [ (#odds* bindings) ] ~&rest)
            __ret __f)
       (set! recur
             (# (set! __xs arguments)
@@ -122,27 +122,27 @@
                  __ret)))
       (recur (#evens* bindings)))))
 
-(defmacro template [name pms &args]
-  (def ~name (fn [ ~@pms ] (str ~&args))))
+(defmacro template [name pms &rest]
+  (def ~name (fn [ ~@pms ] (str ~&rest))))
 
-(defmacro template-repeat [arg &args]
+(defmacro template-repeat [arg &rest]
   (reduce ~arg
     (fn [__memo __elem __index __arr]
-      (str __memo (str ~&args))) ""))
+      (str __memo (str ~&rest))) ""))
 
-(defmacro template-repeat-key [obj &args]
+(defmacro template-repeat-key [obj &rest]
   (do-with [__ret ""]
     (eachKey ~obj
       (fn [value key]
-        (set! __ret (str __ret (str ~&args)))))))
+        (set! __ret (str __ret (str ~&rest)))))))
 
-(defmacro sequence [name args init &args]
+(defmacro sequence [name args init &rest]
   (var ~name
     (fn [ ~@args ]
       ((# ~@init
           (var next nil)
           (var __curr 0)
-          (var __actions (new Array ~&args))
+          (var __actions (new Array ~&rest))
           (set! next
             (# (var ne (get __actions ++__curr))
                (if ne ne (throw "Call to (next) beyond sequence."))))
@@ -153,8 +153,8 @@
     (str "Passed - " ~message)
     (str "Failed - " ~message)))
 
-(defmacro testGroup [name &args]
-  (var ~name (# [ ~&args ])))
+(defmacro testGroup [name &rest]
+  (var ~name (# [ ~&rest ])))
 
 (defmacro testRunner [groupname desc]
   ((fn [groupname desc]
@@ -235,13 +235,13 @@
     (m-bind __m.bind ~bindings (__u ~expr))) (~monad)))
 
 (defmacro defmonad [name obj] (def ~name (# ~obj)))
-(defmacro and [&args] (&& ~&args))
-(defmacro or [&args] (|| ~&args))
-(defmacro not [&args] (! ~&args))
-(defmacro not= [&args] (!= ~&args))
-(defmacro mod [&args] (% ~&args))
-(defmacro nil? [&args] (null? ~&args))
-(defmacro eq? [&args] (== ~&args))
+(defmacro and [&rest] (&& ~&rest))
+(defmacro or [&rest] (|| ~&rest))
+(defmacro not [&rest] (! ~&rest))
+(defmacro not= [&rest] (!= ~&rest))
+(defmacro mod [&rest] (% ~&rest))
+(defmacro nil? [&rest] (null? ~&rest))
+(defmacro eq? [&rest] (== ~&rest))
 (defmacro alen [arr] (.-length ~arr))
 (defmacro eindex [arr] (- (.-length ~arr) 1))
 
@@ -253,15 +253,15 @@
 (defmacro second [arr] (aget ~arr 1))
 (defmacro 2nd [arr] (aget ~arr 1))
 
-(defmacro bit-and [&args] (& ~&args))
-(defmacro bit-or [&args] (| ~&args))
-(defmacro bit-xor [&args] (^ ~&args))
+(defmacro bit-and [&rest] (& ~&rest))
+(defmacro bit-or [&rest] (| ~&rest))
+(defmacro bit-xor [&rest] (^ ~&rest))
 
-(defmacro bit-shift-right-zero [&args] (>>> ~&args))
-(defmacro bit-shift-right [&args] (>> ~&args))
-(defmacro bit-shift-left [&args] (<< ~&args))
+(defmacro bit-shift-right-zero [&rest] (>>> ~&rest))
+(defmacro bit-shift-right [&rest] (>> ~&rest))
+(defmacro bit-shift-left [&rest] (<< ~&rest))
 
-(defmacro # [&args] (fn [] ~&args))
+(defmacro # [&rest] (fn [] ~&rest))
 
 (defmacro pos? [arg] (and (number? ~arg) (> ~arg 0)))
 
@@ -271,29 +271,29 @@
 
 (defmacro dec [x] (- ~x 1))
 
-(defmacro when-not [cond &args] (if (! ~cond) (do ~&args)))
+(defmacro when-not [cond &rest] (if (! ~cond) (do ~&rest)))
 
-(defmacro if-not [cond &args] (if (! ~cond) ~&args))
+(defmacro if-not [cond then else] (if (! ~cond) ~then ~else))
 
-(defmacro try! [&args] (try ~&args (catch e undefined)))
+(defmacro try! [&rest] (try ~&rest (catch e undefined)))
 
 (defmacro let* [bindings expr]
   (do-monad m-identity ~bindings ~expr))
 
-(defmacro let [bindings &args] (do (var ~@bindings) ~&args))
+(defmacro let [bindings &rest] (do (var ~@bindings) ~&rest))
 
 (defmacro do-with
-  [binding &args]
-  (let ~binding (do ~&args (#head binding))))
+  [binding &rest]
+  (let ~binding (do ~&rest (#head binding))))
 
-(defmacro do->false [&args] (do ~&args false))
-(defmacro do->true [&args] (do ~&args true))
-(defmacro do->nil [&args] (do ~&args nil))
+(defmacro do->false [&rest] (do ~&rest false))
+(defmacro do->true [&rest] (do ~&rest true))
+(defmacro do->nil [&rest] (do ~&rest nil))
 
-(defmacro dotimes [binding &args]
+(defmacro dotimes [binding &rest]
   (loop ((#head binding) 0 times (#tail binding))
     (when (> times (#head binding))
-      ~&args
+      ~&rest
       (recur (+ 1 (#head binding)) times))))
 
 (defmacro constantly [x] (do (# ~x)))
@@ -305,10 +305,10 @@
     (var ~@binding)
     (if (some? (#head binding)) ~then ~else)))
 
-(defmacro when-some [binding &args]
+(defmacro when-some [binding &rest]
   (do
     (var ~@binding)
-    (when (some? (#head binding)) ~&args)))
+    (when (some? (#head binding)) ~&rest)))
 
 (defmacro repeat [n expr]
   (do (var __x ~expr)
