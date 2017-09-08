@@ -104,7 +104,7 @@
 (defmacro filter [&rest]
   (Array.prototype.filter.call ~&rest))
 
-(defmacro some? [&rest]
+(defmacro some [&rest]
   (Array.prototype.some.call ~&rest))
 
 (defmacro every? [&rest]
@@ -249,9 +249,13 @@
                        (aget a (- (alen a) 1))))
 (defmacro nth [arr pos] (aget ~arr ~pos))
 (defmacro first [arr] (aget ~arr 0))
-(defmacro 1st [arr] (aget ~arr 0))
 (defmacro second [arr] (aget ~arr 1))
 (defmacro 2nd [arr] (aget ~arr 1))
+(defmacro 1st [arr] (aget ~arr 0))
+
+(defmacro cadr [arr] (aget ~arr 1))
+(defmacro car [arr] (aget ~arr 0))
+
 
 (defmacro bit-and [&rest] (& ~&rest))
 (defmacro bit-or [&rest] (| ~&rest))
