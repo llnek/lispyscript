@@ -81,25 +81,27 @@
     (-> ((#<< form) ~func ~@form) ~&rest)
     ((#<< form) ~func ~@form)))
 
-(defmacro each [arr &rest] (.forEach ~arr ~&rest))
+;;(defmacro each [arr &rest] (.forEach ~arr ~&rest))
+(defmacro each [func arr] (.forEach ~arr ~func))
 
-(defmacro reduce [arr &rest] (.reduce ~arr ~&rest))
+;;(defmacro reduce [arr &rest] (.reduce ~arr ~&rest))
+(defmacro reduce [func start arr] (.reduce ~arr ~func ~start))
 
-(defmacro eachKey [obj func &rest]
+(defmacro eachKey [func obj &rest]
   ((fn [o f s]
     (var _k (Object.keys o))
-    (each _k
+    (each 
       (fn [em]
-        (f.call s (get o em) em o)))) ~obj ~func ~&rest))
+        (f.call s (get o em) em o)) _k)) ~obj ~func ~&rest))
 
 (defmacro each2d [arr func]
-  (each ~arr
+  (each 
     (fn [__e1 __i __a1]
-      (each __e1
+      (each 
         (fn [__e2 __j __a2]
-          (~func __e2 __j __i __a2 __a1))))))
+          (~func __e2 __j __i __a2 __a1)) __e1)) ~arr))
 
-(defmacro map [arr &rest] (.map ~arr ~&rest))
+(defmacro map [func arr] (.map ~arr ~func))
 
 (defmacro filter [&rest]
   (Array.prototype.filter.call ~&rest))
@@ -126,15 +128,15 @@
   (def ~name (fn [ ~@pms ] (str ~&rest))))
 
 (defmacro template-repeat [arg &rest]
-  (reduce ~arg
+  (reduce
     (fn [__memo __elem __index __arr]
-      (str __memo (str ~&rest))) ""))
+      (str __memo (str ~&rest))) "" ~arg))
 
 (defmacro template-repeat-key [obj &rest]
   (do-with [__ret ""]
-    (eachKey ~obj
+    (eachKey 
       (fn [value key]
-        (set! __ret (str __ret (str ~&rest)))))))
+        (set! __ret (str __ret (str ~&rest)))) ~obj)))
 
 (defmacro sequence [name args init &rest]
   (var ~name
@@ -162,11 +164,11 @@
          tests (groupname)
          passed 0
          failed 0)
-    (each tests
+    (each
       (fn [em]
         (if (em.match (new RegExp "^Passed"))
           (++ passed)
-          (++ failed))))
+          (++ failed))) tests)
     (str
       (str "\n" desc "\n" start "\n\n")
       (template-repeat tests __elem "\n")
@@ -190,15 +192,15 @@
   (hash-map
     bind (fn [mv mf]
            (reduce
-             (map mv mf)
              (fn [accum val] (accum.concat val))
-             []))
+             []
+             (map mf mv) ))
     unit (fn [v] [v])
     zero []
     plus (# (reduce
-              (Array.prototype.slice.call arguments)
               (fn [accum val] (accum.concat val))
-              []))))
+              []
+              (Array.prototype.slice.call arguments)))))
 
 (defmacro m-state []
   (hash-map
@@ -328,4 +330,15 @@
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;EOF
+(defmacro regexs [pattern glim] (new RegExp ~pattern ~glim))
+(defmacro regex [pattern] (new RegExp ~pattern))
+(defmacro values [obj] (Object.values ~obj))
+(defmacro keys [obj] (Object.keys ~obj))
+(defmacro toggle! [x] (set! ~x (not ~x)))
+(defmacro jsargs! [] (Array.prototype.slice.call arguments))
+
+
+
+
+
 

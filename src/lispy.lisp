@@ -111,11 +111,11 @@
               (-> (require "child_process")
                   (.spawn "lispy" [ (.substring f (+ 1 (.-length cwd1))) ] {stdio "inherit"}))
               (and (object? f) (nil? prev) (nil? curr))
-              (eachKey f
+              (eachKey 
                        (fn (stat initialf)
                            (unless (= initialf cwd)
                              (-> (require "child_process")
-                                 (.spawn "lispy" [ (.substring initialf (+ 1 (.-length cwd)))] {stdio "inherit"})))))))))
+                                 (.spawn "lispy" [ (.substring initialf (+ 1 (.-length cwd)))] {stdio "inherit"})))) f)))))
       :else true) ;; no other options - go ahead and compile
 
   ;; if infile undefined

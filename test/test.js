@@ -218,7 +218,7 @@ let lispyscript = function () {
         4
       ].reduce(function (accum,val) {
         return (accum + val);
-      }))) ?
+      },0))) ?
       ["Passed - ","reduce test without init"].join("") :
       ["Failed - ","reduce test without init"].join("")),
     ((true === (20 === [

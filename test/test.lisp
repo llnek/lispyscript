@@ -89,33 +89,36 @@
   (= 10
     (do
       (var ret 0)
-      (each [ 1 2 3 4]
+      (each 
         (fn (val)
-          (set! ret (+ ret val))))
+          (set! ret (+ ret val)))  
+        [ 1 2 3 4])
       ret)) "each test")
 (assert
   (= 10
     (do
       (var ret 0)
-      (eachKey {a 1 b 2 c 3 d 4}
+      (eachKey 
         (fn (val)
-          (set! ret (+ ret val))))
+          (set! ret (+ ret val))) {a 1 b 2 c 3 d 4})
       ret)) "eachKey test")
 (assert
   (= 10
-    (reduce [1 2 3 4]
+    (reduce 
       (fn (accum val)
-        (+ accum val)) 0)) "reduce test with init")
+        (+ accum val)) 0
+      [1 2 3 4])) "reduce test with init")
 (assert
   (= 10
-    (reduce [1 2 3 4]
+    (reduce
       (fn (accum val)
-        (+ accum val)))) "reduce test without init")
+        (+ accum val)) 0 [1 2 3 4])) "reduce test without init")
 (assert
   (= 20
-    (reduce (map [1 2 3 4] (fn (val) (* val 2)))
+    (reduce 
       (fn (accum val)
-        (+ accum val)) 0)) "map test")
+        (+ accum val)) 0
+      (map (fn (val) (* val 2)) [1 2 3 4]))) "map test")
 (assert (= "112233" (testTemplate 1 2 3)) "template test")
 (assert (= "112233" (template-repeat-key {"1" 1 "2" 2 "3" 3} key value)) "template repeat key test")
 (assert
@@ -136,21 +139,21 @@
 (assert
   (= 54
     (reduce
-      (do-monad m-array (a [1 2 3] b [3 4 5]) (+ a b))
       (fn (accum val) (+ accum val))
-      0)) "arrayMonad test")
+      0
+      (do-monad m-array (a [1 2 3] b [3 4 5]) (+ a b)))) "arrayMonad test")
 (assert
   (= 32
     (reduce
-      (do-monad m-array (a [1 2 3] b [3 4 5]) (when (<= (+ a b) 6) (+ a b)))
       (fn (accum val) (+ accum val))
-      0)) "arrayMonad when test")
+      0
+      (do-monad m-array (a [1 2 3] b [3 4 5]) (when (<= (+ a b) 6) (+ a b))))) "arrayMonad when test")
 (assert
   (= 6
     (reduce
-      (do-monad m-array (a [1 2 0 null 3]) (when a a))
       (fn (accum val) (+ accum val))
-      0)) "arrayMonad when null values test")
+      0
+      (do-monad m-array (a [1 2 0 null 3]) (when a a)))) "arrayMonad when null values test")
 (assert
   (= 13
     (namedFn 7 6)) "named function test")
