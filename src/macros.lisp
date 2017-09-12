@@ -255,6 +255,8 @@
 (defmacro 2nd [arr] (aget ~arr 1))
 (defmacro 1st [arr] (aget ~arr 0))
 
+(defmacro cadddr [arr] (aget ~arr 3))
+(defmacro caddr [arr] (aget ~arr 2))
 (defmacro cadr [arr] (aget ~arr 1))
 (defmacro car [arr] (aget ~arr 0))
 
@@ -316,7 +318,7 @@
     (var ~@binding)
     (when (some? (#head binding)) ~&rest)))
 
-(defmacro repeat [n expr]
+(defmacro repeatXX [n expr]
   (do (var __x ~expr)
       (repeat-n ~n __x)))
 
@@ -337,7 +339,8 @@
 (defmacro toggle! [x] (set! ~x (not ~x)))
 (defmacro jsargs! [] (Array.prototype.slice.call arguments))
 
-
+(defmacro ns [hint meta name &rest]
+  (#if &rest (#<< &rest)))
 
 
 
